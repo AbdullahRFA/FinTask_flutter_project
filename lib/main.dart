@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Import Riverpod
 import 'firebase_options.dart';
 import 'features/auth/data/auth_repository.dart'; // Import for the stream provider
 import 'features/auth/presentation/login_screen.dart';
+import 'features/home/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,8 +49,7 @@ class AuthGate extends ConsumerWidget {
       data: (user) {
         if (user != null) {
           // User is logged in!
-          return const Scaffold(body: Center(child: Text("Welcome! (Home Screen)")));
-        }
+          return const HomeScreen();        }
         // User is null (Logged out)
         return const LoginScreen();
       },
