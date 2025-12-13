@@ -5,7 +5,7 @@ import 'package:monthly_expense_flutter_project/features/wallet/domain/wallet_mo
 import 'package:monthly_expense_flutter_project/features/wallet/data/wallet_repository.dart';
 import 'package:monthly_expense_flutter_project/features/expenses/data/expense_repository.dart';
 import 'package:monthly_expense_flutter_project/features/expenses/presentation/add_expense_dialog.dart';
-
+import 'package:monthly_expense_flutter_project/core/utils/expense_grouper.dart';
 class WalletDetailScreen extends ConsumerWidget {
   final WalletModel wallet;
 
@@ -66,26 +66,66 @@ class WalletDetailScreen extends ConsumerWidget {
           ),
 
           // --- EXPENSE LIST ---
+          // --- EXPENSE LIST (GROUPED) ---
           Expanded(
             child: expensesAsync.when(
               data: (expenses) {
                 if (expenses.isEmpty) {
                   return const Center(child: Text("No expenses yet. Spend some money!"));
                 }
+
+                // 1. Group the expenses
+                final groupedMap = ExpenseGrouper.groupExpensesByDate(expenses);
+                final dateKeys = groupedMap.keys.toList();
+
+                // 2. Build the list
                 return ListView.builder(
-                  itemCount: expenses.length,
+                  itemCount: dateKeys.length,
                   itemBuilder: (context, index) {
-                    final expense = expenses[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        child: Text(expense.category[0]),
-                      ),
-                      title: Text(expense.title),
-                      subtitle: Text(DateFormat('MMM d, y - h:mm a').format(expense.date)),
-                      trailing: Text(
-                        "-${expense.amount}",
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                      ),
+                    final dateKey = dateKeys[index];
+                    final dayExpenses = groupedMap[dateKey]!;
+                    final headerText = ExpenseGrouper.getNiceHeader(dateKey);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // A. The Daily Header (e.g. "Today")
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Text(
+                            headerText,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+
+                        // B. The List of Expenses for that day
+                        ...dayExpenses.map((expense) {
+                          return Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            elevation: 1, // Slight shadow looks nice
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.teal.shade100,
+                                child: Icon(_getIconForCategory(expense.category), color: Colors.teal),
+                              ),
+                              title: Text(expense.title),
+                              subtitle: Text(expense.category),
+                              trailing: Text(
+                                "-${expense.amount}",
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ],
                     );
                   },
                 );
@@ -97,5 +137,17 @@ class WalletDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  IconData _getIconForCategory(String category) {
+    switch (category) {
+      case 'Food': return Icons.fastfood;
+      case 'Transport': return Icons.directions_bus;
+      case 'Bills': return Icons.receipt;
+      case 'Shopping': return Icons.shopping_bag;
+      case 'Entertainment': return Icons.movie;
+      case 'Health': return Icons.local_hospital;
+      default: return Icons.attach_money;
+    }
   }
 }

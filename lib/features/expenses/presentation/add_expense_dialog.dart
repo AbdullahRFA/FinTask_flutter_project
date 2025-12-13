@@ -39,6 +39,8 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
         amount: amount,
         category: _selectedCategory,
         date: DateTime.now(), // Default to Right Now
+        //   date: DateTime.now().subtract(const Duration(days: 1))
+
       );
 
       if (mounted) Navigator.pop(context); // Close dialog
