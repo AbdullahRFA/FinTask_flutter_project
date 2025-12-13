@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:monthly_expense_flutter_project/features/auth/data/auth_repository.dart';
 import 'package:monthly_expense_flutter_project/features/wallet/data/wallet_repository.dart';
 import 'package:monthly_expense_flutter_project/features/wallet/presentation/add_wallet_dialog.dart';
-
+import 'package:monthly_expense_flutter_project/features/wallet/presentation/wallet_detail_screen.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -58,6 +58,15 @@ class HomeScreen extends ConsumerWidget {
                       fontSize: 16,
                     ),
                   ),
+                  // NEW: Add Navigation
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => WalletDetailScreen(wallet: wallet),
+                      ),
+                    );
+                  },
                 ),
               );
             },
