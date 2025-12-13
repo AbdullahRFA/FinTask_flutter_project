@@ -7,8 +7,8 @@ import 'package:monthly_expense_flutter_project/features/expenses/data/expense_r
 import 'package:monthly_expense_flutter_project/features/expenses/presentation/add_expense_dialog.dart';
 import 'package:monthly_expense_flutter_project/core/utils/expense_grouper.dart';
 import 'package:monthly_expense_flutter_project/features/analytics/presentation/category_pie_chart.dart';
-
 import '../../../core/utils/currency_helper.dart';
+
 class WalletDetailScreen extends ConsumerWidget {
   final WalletModel wallet;
 
@@ -30,10 +30,7 @@ class WalletDetailScreen extends ConsumerWidget {
             icon: const Icon(Icons.pie_chart),
             tooltip: "View Analytics",
             onPressed: () {
-              // We need the expenses list to show the chart.
-              // We read the current state of the provider.
               final expensesState = ref.read(expenseListProvider(wallet.id));
-
               if (expensesState.hasValue) {
                 showModalBottomSheet(
                   context: context,
@@ -44,7 +41,6 @@ class WalletDetailScreen extends ConsumerWidget {
                       children: [
                         const Text("Spending Breakdown", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 20),
-                        // Pass the list to our new Chart Widget
                         CategoryPieChart(expenses: expensesState.value!),
                       ],
                     ),
@@ -57,9 +53,15 @@ class WalletDetailScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
+          // Get the LATEST balance from the provider, fallback to the passed wallet's balance
+          final currentBalance = walletAsync.value?.currentBalance ?? wallet.currentBalance;
+
           showDialog(
             context: context,
-            builder: (_) => AddExpenseDialog(walletId: wallet.id),
+            builder: (_) => AddExpenseDialog(
+              walletId: wallet.id,
+              currentBalance: currentBalance, // <--- PASSING BALANCE
+            ),
           );
         },
         child: const Icon(Icons.add),
@@ -73,17 +75,26 @@ class WalletDetailScreen extends ConsumerWidget {
             color: Colors.teal.shade50,
             child: walletAsync.when(
               // Success: Show live data
-              data: (liveWallet) => Column(
-                children: [
-                  const Text("Current Balance", style: TextStyle(color: Colors.grey)),
-                  Text(
-                    "${CurrencyHelper.format(liveWallet.currentBalance)}",
-                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.teal),
-                  ),
-                  Text("Monthly Budget: ${CurrencyHelper.format(liveWallet.monthlyBudget)}"),
-                ],
-              ),
-              // Loading: Show old data (so it doesn't flicker)
+              data: (liveWallet) {
+                // <--- LOGIC FOR COLOR --->
+                final balanceColor = liveWallet.currentBalance < 0 ? Colors.red : Colors.teal;
+
+                return Column(
+                  children: [
+                    const Text("Current Balance", style: TextStyle(color: Colors.grey)),
+                    Text(
+                      CurrencyHelper.format(liveWallet.currentBalance),
+                      style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: balanceColor // <--- APPLIED HERE
+                      ),
+                    ),
+                    Text("Monthly Budget: ${CurrencyHelper.format(liveWallet.monthlyBudget)}"),
+                  ],
+                );
+              },
+              // Loading
               loading: () => Column(
                 children: [
                   const Text("Current Balance", style: TextStyle(color: Colors.grey)),
@@ -94,25 +105,20 @@ class WalletDetailScreen extends ConsumerWidget {
                   Text("Monthly Budget: ${CurrencyHelper.format(wallet.monthlyBudget)}"),
                 ],
               ),
-              // Error: Show message
               error: (err, stack) => Text("Error loading balance: $err"),
             ),
           ),
 
           // --- EXPENSE LIST ---
-          // --- EXPENSE LIST (GROUPED) ---
           Expanded(
             child: expensesAsync.when(
               data: (expenses) {
                 if (expenses.isEmpty) {
                   return const Center(child: Text("No expenses yet. Spend some money!"));
                 }
-
-                // 1. Group the expenses
                 final groupedMap = ExpenseGrouper.groupExpensesByDate(expenses);
                 final dateKeys = groupedMap.keys.toList();
 
-                // 2. Build the list
                 return ListView.builder(
                   itemCount: dateKeys.length,
                   itemBuilder: (context, index) {
@@ -123,7 +129,6 @@ class WalletDetailScreen extends ConsumerWidget {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                           child: Text(
@@ -131,13 +136,10 @@ class WalletDetailScreen extends ConsumerWidget {
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.grey),
                           ),
                         ),
-
-                        // Items List
                         ...dayExpenses.map((expense) {
-                          // --- NEW: DISMISSIBLE FOR DELETE ---
                           return Dismissible(
-                            key: ValueKey(expense.id), // Unique key for animation
-                            direction: DismissDirection.endToStart, // Swipe Right to Left
+                            key: ValueKey(expense.id),
+                            direction: DismissDirection.endToStart,
                             background: Container(
                               color: Colors.red,
                               alignment: Alignment.centerRight,
@@ -145,7 +147,6 @@ class WalletDetailScreen extends ConsumerWidget {
                               child: const Icon(Icons.delete, color: Colors.white),
                             ),
                             confirmDismiss: (direction) async {
-                              // Ask for confirmation
                               return await showDialog(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
@@ -159,7 +160,6 @@ class WalletDetailScreen extends ConsumerWidget {
                               );
                             },
                             onDismissed: (direction) {
-                              // Execute Delete
                               ref.read(expenseRepositoryProvider).deleteExpense(
                                   walletId: wallet.id,
                                   expenseId: expense.id,
@@ -179,13 +179,15 @@ class WalletDetailScreen extends ConsumerWidget {
                                   "-${expense.amount}",
                                   style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                                 ),
-                                // --- NEW: LONG PRESS TO EDIT ---
                                 onLongPress: () {
+                                  // Pass the CURRENT BALANCE here too for the check
+                                  final currentBalance = walletAsync.value?.currentBalance ?? wallet.currentBalance;
                                   showDialog(
                                     context: context,
                                     builder: (_) => AddExpenseDialog(
                                       walletId: wallet.id,
-                                      expenseToEdit: expense, // Pass the item to edit
+                                      currentBalance: currentBalance, // <--- PASSING BALANCE
+                                      expenseToEdit: expense,
                                     ),
                                   );
                                 },

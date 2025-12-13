@@ -5,9 +5,15 @@ import 'package:monthly_expense_flutter_project/features/expenses/domain/expense
 
 class AddExpenseDialog extends ConsumerStatefulWidget {
   final String walletId;
+  final double currentBalance; // <--- NEW: To check limits
   final ExpenseModel? expenseToEdit;
 
-  const AddExpenseDialog({super.key, required this.walletId, this.expenseToEdit});
+  const AddExpenseDialog({
+    super.key,
+    required this.walletId,
+    required this.currentBalance,
+    this.expenseToEdit
+  });
 
   @override
   ConsumerState<AddExpenseDialog> createState() => _AddExpenseDialogState();
@@ -32,23 +38,14 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
     }
   }
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _amountController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _processTransaction() async {
     setState(() => _isLoading = true);
-
     try {
       final amount = double.parse(_amountController.text.trim());
       final title = _titleController.text.trim();
 
       if (widget.expenseToEdit == null) {
-        // --- ADD MODE ---
+        // ADD
         await ref.read(expenseRepositoryProvider).addExpense(
           walletId: widget.walletId,
           title: title,
@@ -57,7 +54,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
           date: DateTime.now(),
         );
       } else {
-        // --- EDIT MODE ---
+        // EDIT
         final newExpense = ExpenseModel(
           id: widget.expenseToEdit!.id,
           title: title,
@@ -72,9 +69,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
           newExpense: newExpense,
         );
       }
-
       if (mounted) Navigator.pop(context);
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
@@ -82,12 +77,55 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
     }
   }
 
+  Future<void> _checkAndSave() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final amount = double.parse(_amountController.text.trim());
+
+    // Calculate the actual impact on the wallet
+    double impact = amount;
+    if (widget.expenseToEdit != null) {
+      // If editing, we only care about the DIFFERENCE (e.g. changing 100 to 500 = +400 impact)
+      impact = amount - widget.expenseToEdit!.amount;
+    }
+
+    // CHECK: Is the impact greater than available money?
+    if (impact > widget.currentBalance) {
+      // SHOW WARNING POPUP
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Insufficient Balance", style: TextStyle(color: Colors.red)),
+          content: Text(
+              "You are trying to spend ৳$amount but you only have ৳${widget.currentBalance}.\n\n"
+                  "This will result in a negative balance. Continue?"
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false), // No
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(ctx, true), // Yes
+              child: const Text("Proceed Anyway"),
+            ),
+          ],
+        ),
+      );
+
+      // If user clicked Cancel (false) or clicked outside (null), stop.
+      if (confirm != true) return;
+    }
+
+    // If check passed or user confirmed, proceed.
+    await _processTransaction();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.expenseToEdit != null;
-
     return AlertDialog(
-      title: Text(isEditing ? "Edit Expense" : "Add New Expense"),
+      title: Text(widget.expenseToEdit == null ? "Add New Expense" : "Edit Expense"),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -120,8 +158,8 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
         ElevatedButton(
-          onPressed: _isLoading ? null : _save,
-          child: _isLoading ? const CircularProgressIndicator() : Text(isEditing ? "Update" : "Add"),
+          onPressed: _isLoading ? null : _checkAndSave, // Point to our new check function
+          child: _isLoading ? const CircularProgressIndicator() : Text(widget.expenseToEdit == null ? "Add" : "Update"),
         ),
       ],
     );

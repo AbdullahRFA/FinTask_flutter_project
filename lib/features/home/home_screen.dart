@@ -78,15 +78,17 @@ class HomeScreen extends ConsumerWidget {
                   subtitle: Text("Budget: ${CurrencyHelper.format(wallet.monthlyBudget)}"),
 
                   // --- THE 3-DOT MENU SECTION ---
+                  // Inside the ListTile trailing Row...
                   trailing: Row(
-                    mainAxisSize: MainAxisSize.min, // Vital to prevent layout errors
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       // Balance Text
                       Text(
                         "Bal: ${CurrencyHelper.format(wallet.currentBalance)}",
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                          // If negative, show Red, otherwise Green
+                          color: wallet.currentBalance < 0 ? Colors.red : Colors.green,
                           fontSize: 14,
                         ),
                       ),
