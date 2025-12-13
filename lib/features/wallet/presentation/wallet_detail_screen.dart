@@ -6,6 +6,7 @@ import 'package:monthly_expense_flutter_project/features/wallet/data/wallet_repo
 import 'package:monthly_expense_flutter_project/features/expenses/data/expense_repository.dart';
 import 'package:monthly_expense_flutter_project/features/expenses/presentation/add_expense_dialog.dart';
 import 'package:monthly_expense_flutter_project/core/utils/expense_grouper.dart';
+import 'package:monthly_expense_flutter_project/features/analytics/presentation/category_pie_chart.dart';
 class WalletDetailScreen extends ConsumerWidget {
   final WalletModel wallet;
 
@@ -20,7 +21,38 @@ class WalletDetailScreen extends ConsumerWidget {
     final walletAsync = ref.watch(walletStreamProvider(wallet.id));
 
     return Scaffold(
-      appBar: AppBar(title: Text(wallet.name)),
+      appBar: AppBar(
+        title: Text(wallet.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.pie_chart),
+            tooltip: "View Analytics",
+            onPressed: () {
+              // We need the expenses list to show the chart.
+              // We read the current state of the provider.
+              final expensesState = ref.read(expenseListProvider(wallet.id));
+
+              if (expensesState.hasValue) {
+                showModalBottomSheet(
+                  context: context,
+                  builder: (_) => Container(
+                    padding: const EdgeInsets.all(16),
+                    height: 400,
+                    child: Column(
+                      children: [
+                        const Text("Spending Breakdown", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 20),
+                        // Pass the list to our new Chart Widget
+                        CategoryPieChart(expenses: expensesState.value!),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            },
+          )
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           showDialog(
