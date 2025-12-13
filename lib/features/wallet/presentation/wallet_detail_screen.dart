@@ -7,6 +7,8 @@ import 'package:monthly_expense_flutter_project/features/expenses/data/expense_r
 import 'package:monthly_expense_flutter_project/features/expenses/presentation/add_expense_dialog.dart';
 import 'package:monthly_expense_flutter_project/core/utils/expense_grouper.dart';
 import 'package:monthly_expense_flutter_project/features/analytics/presentation/category_pie_chart.dart';
+
+import '../../../core/utils/currency_helper.dart';
 class WalletDetailScreen extends ConsumerWidget {
   final WalletModel wallet;
 
@@ -75,10 +77,10 @@ class WalletDetailScreen extends ConsumerWidget {
                 children: [
                   const Text("Current Balance", style: TextStyle(color: Colors.grey)),
                   Text(
-                    "${liveWallet.currentBalance}",
+                    "${CurrencyHelper.format(liveWallet.currentBalance)}",
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.teal),
                   ),
-                  Text("Monthly Budget: ${liveWallet.monthlyBudget}"),
+                  Text("Monthly Budget: ${CurrencyHelper.format(liveWallet.monthlyBudget)}"),
                 ],
               ),
               // Loading: Show old data (so it doesn't flicker)
@@ -86,10 +88,10 @@ class WalletDetailScreen extends ConsumerWidget {
                 children: [
                   const Text("Current Balance", style: TextStyle(color: Colors.grey)),
                   Text(
-                    "${wallet.currentBalance}...",
+                    "${CurrencyHelper.format(wallet.currentBalance)}...",
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.grey),
                   ),
-                  Text("Monthly Budget: ${wallet.monthlyBudget}"),
+                  Text("Monthly Budget: ${CurrencyHelper.format(wallet.monthlyBudget)}"),
                 ],
               ),
               // Error: Show message
@@ -147,7 +149,7 @@ class WalletDetailScreen extends ConsumerWidget {
                               title: Text(expense.title),
                               subtitle: Text(expense.category),
                               trailing: Text(
-                                "-${expense.amount}",
+                                "-${CurrencyHelper.format(expense.amount)}",
                                 style: const TextStyle(
                                   color: Colors.red,
                                   fontWeight: FontWeight.bold,
