@@ -6,7 +6,7 @@ import 'package:monthly_expense_flutter_project/features/settings/presentation/s
 import 'package:monthly_expense_flutter_project/features/wallet/data/wallet_repository.dart';
 import 'package:monthly_expense_flutter_project/features/wallet/presentation/add_wallet_dialog.dart';
 import 'package:monthly_expense_flutter_project/features/wallet/presentation/wallet_detail_screen.dart';
-
+import 'package:monthly_expense_flutter_project/features/savings/presentation/savings_list_screen.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -32,6 +32,18 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
+
+            ListTile(
+              leading: const Icon(Icons.savings, color: Colors.green),
+              title: const Text("Savings Goals"),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SavingsListScreen()));
+              },
+            ),
+
+            const Divider(),
+
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text("Settings"),
