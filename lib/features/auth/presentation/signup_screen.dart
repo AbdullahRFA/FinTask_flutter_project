@@ -24,44 +24,24 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     try {
-      // 1. Call Repository
       await ref.read(authRepositoryProvider).signUpWithEmail(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
-
-      // 2. Wait a moment to ensure AuthGate settles (prevents glitches)
       await Future.delayed(const Duration(milliseconds: 200));
 
       if (!mounted) return;
-
-      // 3. Show Success
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Account created! Please Login."),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
+        const SnackBar(content: Text("Account created! Please Login."), backgroundColor: Colors.green),
       );
-
-      // 4. Force go back to Login
-      // We check if we can pop to avoid errors if AuthGate already closed us
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-
+      if (Navigator.canPop(context)) Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      // SHOW THE REAL ERROR
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: ${e.toString().replaceAll("Exception: ", "")}"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text("Error: ${e.toString().replaceAll("Exception: ", "")}"), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -71,35 +51,91 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Create Account")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: "Email", border: OutlineInputBorder()),
-                validator: (v) => !v!.contains('@') ? 'Invalid email' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: "Password", border: OutlineInputBorder()),
-                obscureText: true,
-                validator: (v) => v!.length < 6 ? 'Password too short' : null,
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _signUp,
-                  child: _isLoading ? const CircularProgressIndicator() : const Text("Sign Up"),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF00695C), Color(0xFF4DB6AC)], // Darker Teal Gradient
+            begin: Alignment.bottomRight,
+            end: Alignment.topLeft,
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                // Header
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                const Text(
+                  "Create Account",
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const Text(
+                  "Join us to manage your finances.",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+                const SizedBox(height: 40),
+
+                // Form Card
+                Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: InputDecoration(
+                              labelText: "Email",
+                              prefixIcon: const Icon(Icons.person_outline),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            validator: (v) => !v!.contains('@') ? 'Invalid email' : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              labelText: "Password",
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            validator: (v) => v!.length < 6 ? 'Password too short' : null,
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _signUp,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.teal,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: _isLoading
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : const Text("Sign Up", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
