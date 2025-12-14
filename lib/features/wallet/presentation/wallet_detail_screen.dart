@@ -8,6 +8,7 @@ import 'package:monthly_expense_flutter_project/features/expenses/presentation/a
 import 'package:monthly_expense_flutter_project/core/utils/expense_grouper.dart';
 import 'package:monthly_expense_flutter_project/features/analytics/presentation/category_pie_chart.dart';
 import '../../../core/utils/currency_helper.dart';
+import 'package:monthly_expense_flutter_project/core/utils/csv_helper.dart';
 
 class WalletDetailScreen extends ConsumerWidget {
   final WalletModel wallet;
@@ -48,7 +49,43 @@ class WalletDetailScreen extends ConsumerWidget {
                 );
               }
             },
-          )
+          ),
+
+          // --- EXPORT CSV BUTTON (FIXED) ---
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: "Export CSV",
+            onPressed: () async { // <--- 1. Marked ASYNC
+              final expensesState = ref.read(expenseListProvider(wallet.id));
+
+              if (expensesState.hasValue && expensesState.value!.isNotEmpty) {
+                try {
+                  // <--- 2. Try to Export
+                  await CsvHelper.exportExpenses(expensesState.value!);
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Export successful!"), backgroundColor: Colors.green),
+                    );
+                  }
+                } catch (e, stack) {
+                  // <--- 3. CATCH & PRINT ERROR
+                  debugPrint("CSV EXPORT ERROR: $e");
+                  debugPrint(stack.toString());
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Export Failed: $e"), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("No expenses to export!")),
+                );
+              }
+            },
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -60,7 +97,7 @@ class WalletDetailScreen extends ConsumerWidget {
             context: context,
             builder: (_) => AddExpenseDialog(
               walletId: wallet.id,
-              currentBalance: currentBalance, // <--- PASSING BALANCE
+              currentBalance: currentBalance,
             ),
           );
         },
@@ -76,7 +113,6 @@ class WalletDetailScreen extends ConsumerWidget {
             child: walletAsync.when(
               // Success: Show live data
               data: (liveWallet) {
-                // <--- LOGIC FOR COLOR --->
                 final balanceColor = liveWallet.currentBalance < 0 ? Colors.red : Colors.teal;
 
                 return Column(
@@ -87,7 +123,7 @@ class WalletDetailScreen extends ConsumerWidget {
                       style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          color: balanceColor // <--- APPLIED HERE
+                          color: balanceColor
                       ),
                     ),
                     Text("Monthly Budget: ${CurrencyHelper.format(liveWallet.monthlyBudget)}"),
@@ -180,13 +216,12 @@ class WalletDetailScreen extends ConsumerWidget {
                                   style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                                 ),
                                 onLongPress: () {
-                                  // Pass the CURRENT BALANCE here too for the check
                                   final currentBalance = walletAsync.value?.currentBalance ?? wallet.currentBalance;
                                   showDialog(
                                     context: context,
                                     builder: (_) => AddExpenseDialog(
                                       walletId: wallet.id,
-                                      currentBalance: currentBalance, // <--- PASSING BALANCE
+                                      currentBalance: currentBalance,
                                       expenseToEdit: expense,
                                     ),
                                   );

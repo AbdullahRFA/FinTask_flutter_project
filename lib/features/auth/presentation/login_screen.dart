@@ -57,6 +57,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+  Future<void> _forgotPassword() async {
+    if (_emailController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter your email first.")),
+      );
+      return;
+    }
+
+    try {
+      await ref.read(authRepositoryProvider).sendPasswordResetEmail(
+        _emailController.text.trim(),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Reset link sent! Check your email."),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +136,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Login Button
+                // ... Password Field above ...
+                const SizedBox(height: 10),
+
+                // Forgot Password Button
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _forgotPassword,
+                    child: const Text("Forgot Password?"),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // ... Login Button below ...
+
                 SizedBox(
                   width: double.infinity, // Stretch button
                   height: 50,

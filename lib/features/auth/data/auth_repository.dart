@@ -69,6 +69,15 @@ class AuthRepository {
     await _auth.signOut();
   }
 
+  // PASSWORD RESET
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message);
+    }
+  }
+
   User? get currentUser => _auth.currentUser;
 }
 
