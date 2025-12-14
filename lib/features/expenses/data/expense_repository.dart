@@ -10,7 +10,7 @@ class ExpenseRepository {
 
   ExpenseRepository(this._firestore, this.userId);
 
-  // 1. ADD EXPENSE (Atomic Transaction)
+  // 1. ADD EXPENSE
   Future<void> addExpense({
     required String walletId,
     required String title,
@@ -50,7 +50,7 @@ class ExpenseRepository {
     });
   }
 
-  // 2. GET EXPENSES (Stream)
+  // 2. GET EXPENSES
   Stream<List<ExpenseModel>> getExpenses(String walletId) {
     return _firestore
         .collection('users')
@@ -67,7 +67,7 @@ class ExpenseRepository {
     });
   }
 
-  // 3. DELETE EXPENSE (Atomic Transaction - Restore Balance)
+  // 3. DELETE EXPENSE
   Future<void> deleteExpense({
     required String walletId,
     required String expenseId,
@@ -77,17 +77,15 @@ class ExpenseRepository {
       final walletRef = _firestore.collection('users').doc(userId).collection('wallets').doc(walletId);
       final expenseRef = walletRef.collection('expenses').doc(expenseId);
 
-      // Restore the money to the wallet
       transaction.update(walletRef, {
         'currentBalance': FieldValue.increment(amount)
       });
 
-      // Delete the expense
       transaction.delete(expenseRef);
     });
   }
 
-  // 4. EDIT EXPENSE (Transaction) -- MOVED INSIDE THE CLASS
+  // 4. EDIT EXPENSE
   Future<void> updateExpense({
     required String walletId,
     required ExpenseModel oldExpense,
@@ -97,13 +95,10 @@ class ExpenseRepository {
       final walletRef = _firestore.collection('users').doc(userId).collection('wallets').doc(walletId);
       final expenseRef = walletRef.collection('expenses').doc(oldExpense.id);
 
-      // 1. Calculate the difference (Old - New)
       final difference = oldExpense.amount - newExpense.amount;
 
-      // 2. Update the Expense Document
       transaction.update(expenseRef, newExpense.toMap());
 
-      // 3. Update the Wallet Balance
       if (difference != 0) {
         transaction.update(walletRef, {
           'currentBalance': FieldValue.increment(difference),
@@ -111,13 +106,16 @@ class ExpenseRepository {
       }
     });
   }
-} // <--- CLASS ENDS HERE
+}
 
 // ---------------- PROVIDERS ----------------
 
 final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   final firestore = ref.read(firebaseFirestoreProvider);
-  final user = ref.read(firebaseAuthProvider).currentUser;
+
+  // FIX: Watch authStateProvider
+  final authState = ref.watch(authStateProvider);
+  final user = authState.value;
 
   if (user == null) throw Exception("No user logged in");
 

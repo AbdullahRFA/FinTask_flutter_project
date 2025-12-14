@@ -11,10 +11,9 @@ class SummaryRepository {
 
   SummaryRepository(this._firestore, this.userId);
 
-  // FETCH ALL EXPENSES GLOBALLY (Across all wallets)
+  // FETCH ALL EXPENSES GLOBALLY
   Future<List<ExpenseModel>> getAllExpensesGlobal() async {
     try {
-      // 1. Get All Wallets first
       final walletSnapshot = await _firestore
           .collection('users')
           .doc(userId)
@@ -23,8 +22,6 @@ class SummaryRepository {
 
       List<ExpenseModel> allExpenses = [];
 
-      // 2. Loop through each wallet and fetch its expenses
-      // (This is okay for personal apps with <50 wallets. For massive scale, use Collection Groups)
       for (var doc in walletSnapshot.docs) {
         final walletId = doc.id;
         final expenseSnapshot = await _firestore
@@ -52,7 +49,11 @@ class SummaryRepository {
 // PROVIDERS
 final summaryRepositoryProvider = Provider<SummaryRepository>((ref) {
   final firestore = ref.read(firebaseFirestoreProvider);
-  final user = ref.read(firebaseAuthProvider).currentUser;
+
+  // FIX: Watch authStateProvider
+  final authState = ref.watch(authStateProvider);
+  final user = authState.value;
+
   if (user == null) throw Exception("No user");
   return SummaryRepository(firestore, user.uid);
 });

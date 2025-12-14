@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/wallet_model.dart';
 import '../../auth/data/auth_repository.dart';
-import '../../expenses/domain/expense_model.dart'; // Import Expense Model
+import '../../expenses/domain/expense_model.dart';
 
 class WalletRepository {
   final FirebaseFirestore _firestore;
@@ -16,32 +16,28 @@ class WalletRepository {
     required String name,
     required double monthlyBudget,
     double rolloverAmount = 0.0,
-    String? sourceWalletId,   // ID of the old wallet
-    String? sourceWalletName, // Name of the old wallet
+    String? sourceWalletId,
+    String? sourceWalletName,
   }) async {
-    // We use a Transaction to ensure both wallets update together, or fail together.
     return _firestore.runTransaction((transaction) async {
       final userRef = _firestore.collection('users').doc(userId);
       final newWalletRef = userRef.collection('wallets').doc();
       final now = DateTime.now();
 
-      // --- STEP 1: HANDLE SOURCE WALLET (The Old One) ---
+      // --- STEP 1: HANDLE SOURCE WALLET ---
       if (sourceWalletId != null && rolloverAmount > 0) {
         final sourceWalletRef = userRef.collection('wallets').doc(sourceWalletId);
         final sourceExpenseRef = sourceWalletRef.collection('expenses').doc();
 
-        // Check if source wallet still exists
         final sourceSnapshot = await transaction.get(sourceWalletRef);
         if (sourceSnapshot.exists) {
-          // A. Deduct Money from Old Wallet
           transaction.update(sourceWalletRef, {
             'currentBalance': FieldValue.increment(-rolloverAmount),
           });
 
-          // B. Add "Expense" Record to Old Wallet
           final deductionRecord = ExpenseModel(
             id: sourceExpenseRef.id,
-            title: "Rollover to $name", // "Rollover to November"
+            title: "Rollover to $name",
             amount: rolloverAmount,
             category: "Others",
             date: now,
@@ -50,10 +46,7 @@ class WalletRepository {
         }
       }
 
-      // --- STEP 2: HANDLE NEW WALLET (The Destination) ---
-
-      // A. Create the New Wallet
-      // Starting Balance = Budget + Rollover
+      // --- STEP 2: HANDLE NEW WALLET ---
       final newWallet = WalletModel(
         id: newWalletRef.id,
         name: name,
@@ -64,14 +57,13 @@ class WalletRepository {
       );
       transaction.set(newWalletRef, newWallet.toMap());
 
-      // B. Add "Income" Record to New Wallet (Only if there was a rollover)
       if (sourceWalletName != null && rolloverAmount > 0) {
         final newExpenseRef = newWalletRef.collection('expenses').doc();
 
         final incomeRecord = ExpenseModel(
           id: newExpenseRef.id,
-          title: "Rollover from $sourceWalletName", // "Rollover from October"
-          amount: -rolloverAmount, // Negative = Income (Green)
+          title: "Rollover from $sourceWalletName",
+          amount: -rolloverAmount,
           category: "Others",
           date: now,
         );
@@ -147,7 +139,11 @@ class WalletRepository {
 
 final walletRepositoryProvider = Provider<WalletRepository>((ref) {
   final firestore = ref.read(firebaseFirestoreProvider);
-  final user = ref.read(firebaseAuthProvider).currentUser;
+
+  // FIX: Watch authStateProvider instead of reading currentUser once.
+  // This forces the provider to REBUILD whenever the user logs in/out.
+  final authState = ref.watch(authStateProvider);
+  final user = authState.value;
 
   if (user == null) {
     throw Exception("User must be logged in to access WalletRepository");
