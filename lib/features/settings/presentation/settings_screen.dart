@@ -1,8 +1,10 @@
+import 'dart:convert'; // For Base64
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb; // Web Check
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:monthly_expense_flutter_project/core/utils/profile_image_helper.dart';
-import 'package:monthly_expense_flutter_project/features/settings/presentation/edit_profile_screen.dart'; // Import new screen
+import 'package:monthly_expense_flutter_project/features/settings/presentation/edit_profile_screen.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../providers/theme_provider.dart';
 
@@ -14,7 +16,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  String? _profileImagePath;
+  String? _storedImageData;
 
   @override
   void initState() {
@@ -22,12 +24,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _loadProfileImage();
   }
 
-  // Load image from SharedPreferences
   Future<void> _loadProfileImage() async {
-    final path = await ProfileImageHelper.getImagePath();
+    final data = await ProfileImageHelper.getImagePath();
     if (mounted) {
       setState(() {
-        _profileImagePath = path;
+        _storedImageData = data;
       });
     }
   }
@@ -44,6 +45,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final subtitleColor = isDark ? Colors.grey[400] : Colors.grey[600];
     final shadowColor = isDark ? Colors.transparent : Colors.grey.shade100;
 
+    // PREPARE IMAGE PROVIDER SAFELY (WEB vs MOBILE)
+    ImageProvider? imageProvider;
+
+    if (_storedImageData != null) {
+      if (kIsWeb) {
+        // WEB: Decode Base64 string to bytes
+        try {
+          imageProvider = MemoryImage(base64Decode(_storedImageData!));
+        } catch (e) {
+          imageProvider = null;
+        }
+      } else {
+        // MOBILE: Load from File Path
+        try {
+          imageProvider = FileImage(File(_storedImageData!));
+        } catch (e) {
+          imageProvider = null;
+        }
+      }
+    }
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
@@ -55,7 +77,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // 1. Profile Card (Updated)
+          // 1. Profile Card
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -75,10 +97,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 CircleAvatar(
                   radius: 30,
                   backgroundColor: Colors.white,
-                  backgroundImage: _profileImagePath != null
-                      ? FileImage(File(_profileImagePath!))
+                  backgroundImage: imageProvider,
+                  onBackgroundImageError: imageProvider != null
+                      ? (_, __) {
+                    setState(() {
+                      _storedImageData = null;
+                    });
+                  }
                       : null,
-                  child: _profileImagePath == null
+                  child: imageProvider == null
                       ? Text(
                     (user?.email ?? "U").substring(0, 1).toUpperCase(),
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal.shade700),
@@ -106,15 +133,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.white),
                   onPressed: () async {
-                    // Navigate to Edit Screen and wait for result
                     await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const EditProfileScreen())
                     );
-                    // Refresh data when coming back
                     await user?.reload();
                     _loadProfileImage();
-                    setState(() {}); // Rebuild to show new name
+                    setState(() {});
                   },
                 )
               ],
@@ -122,9 +147,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
 
           const SizedBox(height: 30),
-
-          // ... (Rest of your existing tiles: Preferences, Account, etc.)
-          // Reuse your existing _buildTile logic here...
 
           // PREFERENCES
           Padding(
@@ -180,6 +202,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               children: [
                 _buildTile(
+                  icon: Icons.info_outline_rounded,
+                  color: Colors.grey,
+                  title: "About App",
+                  textColor: textColor,
+                  onTap: () {
+                    showAboutDialog(context: context, applicationName: "Monthly Expense", applicationVersion: "1.0.0");
+                  },
+                ),
+                Divider(height: 1, indent: 60, color: isDark ? Colors.grey[800] : Colors.grey[200]),
+                _buildTile(
                   icon: Icons.logout_rounded,
                   color: Colors.red,
                   title: "Logout",
@@ -195,7 +227,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
                           TextButton(
                             onPressed: () {
-                              // Clear image cache on logout so next user doesn't see it
                               ProfileImageHelper.clearImage();
                               Navigator.pop(ctx);
                               Navigator.pop(context);
@@ -216,7 +247,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // Helper Widget (Same as before)
   Widget _buildTile({
     required IconData icon,
     required Color color,

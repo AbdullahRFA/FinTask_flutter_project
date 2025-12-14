@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:monthly_expense_flutter_project/core/utils/profile_image_helper.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../providers/theme_provider.dart';
@@ -16,7 +20,10 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _nameController = TextEditingController();
   final _picker = ImagePicker();
-  String? _localImagePath;
+
+  String? _pickedImageData;
+  XFile? _webPickedFile;
+
   bool _isLoading = false;
 
   @override
@@ -29,42 +36,57 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final user = ref.read(authRepositoryProvider).currentUser;
     _nameController.text = user?.displayName ?? "";
 
-    // Load local image path
-    final path = await ProfileImageHelper.getImagePath();
+    final savedData = await ProfileImageHelper.getImagePath();
     if (mounted) {
       setState(() {
-        _localImagePath = path;
+        _pickedImageData = savedData;
       });
     }
   }
 
   Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _localImagePath = pickedFile.path;
-      });
+    try {
+      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setState(() {
+          if (kIsWeb) {
+            _webPickedFile = pickedFile;
+            _pickedImageData = pickedFile.path;
+          } else {
+            _pickedImageData = pickedFile.path;
+          }
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to pick image: $e")));
     }
   }
 
   Future<void> _saveProfile() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Update Display Name in Firebase Auth
-      // (Note: To update in Firestore too, you'd add a method in AuthRepository)
       final user = ref.read(authRepositoryProvider).currentUser;
       if (user != null) {
         await user.updateDisplayName(_nameController.text.trim());
-
-        // Force provider refresh if needed, or just rely on stream
-        // For simple apps, Firebase Auth stream updates automatically eventually,
-        // but reload ensures immediate effect.
         await user.reload();
       }
 
-      // 2. Save Image Path Locally
-      if (_localImagePath != null) {
-        await ProfileImageHelper.saveImagePath(_localImagePath!);
+      if (kIsWeb) {
+        if (_webPickedFile != null) {
+          final bytes = await _webPickedFile!.readAsBytes();
+          final base64String = base64Encode(bytes);
+          await ProfileImageHelper.saveImagePath(base64String);
+        }
+      } else {
+        if (_pickedImageData != null && !_pickedImageData!.startsWith("http")) {
+          final File tempFile = File(_pickedImageData!);
+          if (await tempFile.exists()) {
+            final appDir = await getApplicationDocumentsDirectory();
+            final fileName = p.basename(_pickedImageData!);
+            final savedImage = await tempFile.copy('${appDir.path}/$fileName');
+            await ProfileImageHelper.saveImagePath(savedImage.path);
+          }
+        }
       }
 
       if (mounted) {
@@ -84,11 +106,31 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  ImageProvider? _getImageProvider() {
+    if (_pickedImageData == null) return null;
+
+    if (kIsWeb) {
+      if (_webPickedFile != null) {
+        return NetworkImage(_webPickedFile!.path);
+      }
+      try {
+        return MemoryImage(base64Decode(_pickedImageData!));
+      } catch (e) {
+        return null;
+      }
+    } else {
+      return FileImage(File(_pickedImageData!));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = ref.watch(themeProvider);
     final bgColor = isDark ? const Color(0xFF121212) : Colors.grey[50];
     final textColor = isDark ? Colors.white : Colors.black87;
+
+    // 1. Get the provider first
+    final imageProvider = _getImageProvider();
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -102,17 +144,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // --- Profile Picture Section ---
             Center(
               child: Stack(
                 children: [
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.teal.shade100,
-                    backgroundImage: _localImagePath != null
-                        ? FileImage(File(_localImagePath!))
+                    // 2. Pass the provider here
+                    backgroundImage: imageProvider,
+                    // 3. CRITICAL FIX: Only enable error listener if provider is NOT null
+                    onBackgroundImageError: imageProvider != null
+                        ? (_, __) {
+                      setState(() {
+                        _pickedImageData = null;
+                        _webPickedFile = null;
+                      });
+                    }
                         : null,
-                    child: _localImagePath == null
+                    child: _pickedImageData == null
                         ? const Icon(Icons.person, size: 60, color: Colors.teal)
                         : null,
                   ),
@@ -135,8 +184,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 30),
-
-            // --- Name Input ---
             TextField(
               controller: _nameController,
               style: TextStyle(color: textColor),
@@ -150,8 +197,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // --- Read-Only Email (Usually handled separately for security) ---
             TextField(
               controller: TextEditingController(text: ref.read(authRepositoryProvider).currentUser?.email),
               readOnly: true,
@@ -166,8 +211,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 40),
-
-            // --- Save Button ---
             SizedBox(
               width: double.infinity,
               height: 50,
