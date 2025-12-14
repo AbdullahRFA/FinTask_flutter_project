@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/auth_repository.dart'; // Import our repository
+import '../data/auth_repository.dart';
 import 'signup_screen.dart';
+
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -10,77 +11,54 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  // Controllers capture what the user types
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  // This key is used to "validate" the form (check for empty fields)
   final _formKey = GlobalKey<FormState>();
-
-  // To show a loading spinner when logging in
   bool _isLoading = false;
 
   @override
   void dispose() {
-    // ALWAYS dispose controllers to free up memory when screen is closed
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  // THE CORE LOGIC FUNCTION
   Future<void> _login() async {
-    // 1. Validate inputs (Are they empty?)
     if (!_formKey.currentState!.validate()) return;
-
-    // 2. Set loading state (UI updates to show spinner)
     setState(() => _isLoading = true);
-
     try {
-      // 3. CALL THE REPOSITORY
-      // ref.read() is how we access the provider.
-      // We don't say "new AuthRepository()". We ask Riverpod for the existing one.
       await ref.read(authRepositoryProvider).loginWithEmail(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
-      // If successful, the AuthGate (which we build next) will auto-switch to Home.
-
     } catch (e) {
-      // 4. Handle Errors (e.g., Wrong password)
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))),
+        SnackBar(content: Text(e.toString().replaceAll("Exception: ", "")), backgroundColor: Colors.red),
       );
     } finally {
-      // 5. Stop loading spinner regardless of success/failure
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
   Future<void> _forgotPassword() async {
     if (_emailController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your email first.")),
+        const SnackBar(content: Text("Please enter your email first to reset password.")),
       );
       return;
     }
-
     try {
-      await ref.read(authRepositoryProvider).sendPasswordResetEmail(
-        _emailController.text.trim(),
-      );
+      await ref.read(authRepositoryProvider).sendPasswordResetEmail(_emailController.text.trim());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Reset link sent! Check your email."),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text("Reset link sent! Check your email."), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))),
+          SnackBar(content: Text(e.toString().replaceAll("Exception: ", "")), backgroundColor: Colors.red),
         );
       }
     }
@@ -89,87 +67,134 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF009688), Color(0xFF80CBC4)], // Teal Gradient
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // 1. Logo Section
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))
+                    ],
+                  ),
+                  child: const Icon(Icons.account_balance_wallet_rounded, size: 60, color: Colors.teal),
+                ),
+                const SizedBox(height: 20),
                 const Text(
-                  "Monthly Expense",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  "Welcome Back",
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Track your wealth, control your future.",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 const SizedBox(height: 40),
 
-                // Email Field
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: "Email",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  // Validator: Returns string if error, null if okay
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Please enter email';
-                    if (!value.contains('@')) return 'Invalid email';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                // 2. Login Card
+                Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: InputDecoration(
+                              labelText: "Email",
+                              prefixIcon: const Icon(Icons.email_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
+                            ),
+                            validator: (v) => v!.isEmpty || !v.contains('@') ? 'Invalid email' : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              labelText: "Password",
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
+                            ),
+                            validator: (v) => v!.length < 6 ? 'Password too short' : null,
+                          ),
 
-                // Password Field
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: "Password",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _forgotPassword,
+                              child: const Text("Forgot Password?", style: TextStyle(color: Colors.teal)),
+                            ),
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _login,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.teal,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 2,
+                              ),
+                              child: _isLoading
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : const Text("Login", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  obscureText: true, // Hide password
-                  validator: (value) {
-                    if (value == null || value.length < 6) return 'Password too short';
-                    return null;
-                  },
                 ),
+
                 const SizedBox(height: 24),
 
-                // ... Password Field above ...
-                const SizedBox(height: 10),
-
-                // Forgot Password Button
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _forgotPassword,
-                    child: const Text("Forgot Password?"),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // ... Login Button below ...
-
-                SizedBox(
-                  width: double.infinity, // Stretch button
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _login, // Disable if loading
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Login"),
-                  ),
-                ),
-
-                // Sign Up Link (We will implement this next)
+                // 3. Signup Link
                 TextButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const SignUpScreen()),
-                    );
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SignUpScreen()));
                   },
-                  child: const Text("Don't have an account? Sign Up"),
+                  child: RichText(
+                    text: const TextSpan(
+                      text: "Don't have an account? ",
+                      style: TextStyle(color: Colors.white),
+                      children: [
+                        TextSpan(
+                          text: "Sign Up",
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
