@@ -10,6 +10,7 @@ import '../../../core/utils/currency_helper.dart';
 import 'package:monthly_expense_flutter_project/core/utils/pdf_helper.dart';
 import 'package:monthly_expense_flutter_project/features/analytics/presentation/budget_summary_card.dart';
 import 'package:monthly_expense_flutter_project/features/analytics/presentation/spending_trend_chart.dart';
+import '../../providers/theme_provider.dart';
 
 class WalletDetailScreen extends ConsumerWidget {
   final WalletModel wallet;
@@ -21,18 +22,25 @@ class WalletDetailScreen extends ConsumerWidget {
     final expensesAsync = ref.watch(expenseListProvider(wallet.id));
     final walletAsync = ref.watch(walletStreamProvider(wallet.id));
 
+    // 1. Theme Data
+    final isDark = ref.watch(themeProvider);
+    final bgColor = isDark ? const Color(0xFF121212) : Colors.grey[50];
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(wallet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.teal,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.teal,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
             tooltip: "Analytics",
-            onPressed: () => _showAnalyticsBottomSheet(context, ref, wallet),
+            onPressed: () => _showAnalyticsBottomSheet(context, ref, wallet, isDark),
           ),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
@@ -59,11 +67,11 @@ class WalletDetailScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          // 1. Modern Header Block
+          // 1. Modern Header Block (Colors handled inside)
           walletAsync.when(
-            data: (liveWallet) => _buildHeader(liveWallet),
-            loading: () => _buildHeader(wallet, isLoading: true),
-            error: (e, s) => Container(padding: const EdgeInsets.all(20), child: Text("Error: $e")),
+            data: (liveWallet) => _buildHeader(liveWallet, isDark),
+            loading: () => _buildHeader(wallet, isDark, isLoading: true),
+            error: (e, s) => Container(padding: const EdgeInsets.all(20), child: Text("Error: $e", style: TextStyle(color: textColor))),
           ),
 
           // 2. Expense List
@@ -71,7 +79,7 @@ class WalletDetailScreen extends ConsumerWidget {
             child: expensesAsync.when(
               data: (expenses) {
                 if (expenses.isEmpty) {
-                  return _buildEmptyState();
+                  return _buildEmptyState(isDark);
                 }
                 final groupedMap = ExpenseGrouper.groupExpensesByDate(expenses);
                 final dateKeys = groupedMap.keys.toList();
@@ -94,13 +102,19 @@ class WalletDetailScreen extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[600],
+                              color: subTextColor,
                               letterSpacing: 1.2,
                             ),
                           ),
                         ),
                         ...dayExpenses.map((expense) {
-                          return _buildExpenseTile(context, ref, expense, liveWallet: walletAsync.value ?? wallet);
+                          return _buildExpenseTile(
+                              context, ref, expense,
+                              liveWallet: walletAsync.value ?? wallet,
+                              isDark: isDark,
+                              cardColor: cardColor,
+                              textColor: textColor
+                          );
                         }).toList(),
                       ],
                     );
@@ -116,9 +130,9 @@ class WalletDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(WalletModel wallet, {bool isLoading = false}) {
-    final balanceColor = wallet.currentBalance < 0 ? Colors.red.shade100 : Colors.teal.shade700;
-    final bgColor = wallet.currentBalance < 0 ? Colors.red.shade900 : Colors.teal;
+  Widget _buildHeader(WalletModel wallet, bool isDark, {bool isLoading = false}) {
+    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.teal;
+    final shadowColor = isDark ? Colors.black26 : Colors.teal.withOpacity(0.4);
 
     return Container(
       width: double.infinity,
@@ -126,7 +140,7 @@ class WalletDetailScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
-        boxShadow: [BoxShadow(color: bgColor.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 5))],
+        boxShadow: [BoxShadow(color: shadowColor, blurRadius: 10, offset: const Offset(0, 5))],
       ),
       child: Column(
         children: [
@@ -157,7 +171,12 @@ class WalletDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildExpenseTile(BuildContext context, WidgetRef ref, dynamic expense, {required WalletModel liveWallet}) {
+  Widget _buildExpenseTile(
+      BuildContext context,
+      WidgetRef ref,
+      dynamic expense,
+      {required WalletModel liveWallet, required bool isDark, required Color cardColor, required Color textColor}) {
+
     final bool isRefund = expense.amount < 0;
     final double displayAmount = expense.amount.abs();
     final Color color = isRefund ? Colors.green : Colors.redAccent;
@@ -167,17 +186,18 @@ class WalletDetailScreen extends ConsumerWidget {
       key: ValueKey(expense.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.red.shade100,
+        color: Colors.red.shade900,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete, color: Colors.red),
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
       confirmDismiss: (direction) async {
         return await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text("Delete Transaction?"),
-            content: const Text("The amount will be refunded to your wallet."),
+            backgroundColor: cardColor,
+            title: Text("Delete Transaction?", style: TextStyle(color: textColor)),
+            content: Text("The amount will be refunded to your wallet.", style: TextStyle(color: textColor)),
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
               TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
@@ -192,22 +212,24 @@ class WalletDetailScreen extends ConsumerWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 4, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: isDark ? Colors.transparent : Colors.grey.shade200, blurRadius: 4, offset: const Offset(0, 2))],
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           leading: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: isRefund ? Colors.green.shade50 : Colors.teal.shade50,
+              color: isRefund
+                  ? (isDark ? Colors.green.withOpacity(0.2) : Colors.green.shade50)
+                  : (isDark ? Colors.teal.withOpacity(0.2) : Colors.teal.shade50),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: isRefund ? Colors.green : Colors.teal, size: 24),
           ),
-          title: Text(expense.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(expense.category, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          title: Text(expense.title, style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+          subtitle: Text(expense.category, style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[500], fontSize: 12)),
           trailing: Text(
             "${isRefund ? '+' : '-'}${CurrencyHelper.format(displayAmount)}",
             style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16),
@@ -227,21 +249,26 @@ class WalletDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long_outlined, size: 80, color: Colors.grey[300]),
+          Icon(Icons.receipt_long_outlined, size: 80, color: isDark ? Colors.grey[700] : Colors.grey[300]),
           const SizedBox(height: 16),
-          Text("No expenses yet", style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+          Text("No expenses yet", style: TextStyle(fontSize: 18, color: isDark ? Colors.grey[500] : Colors.grey[600], fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
-  void _showAnalyticsBottomSheet(BuildContext context, WidgetRef ref, WalletModel wallet) {
+  void _showAnalyticsBottomSheet(BuildContext context, WidgetRef ref, WalletModel wallet, bool isDark) {
     final expensesState = ref.read(expenseListProvider(wallet.id));
+
+    // Theme colors for Sheet
+    final sheetColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     if (expensesState.hasValue) {
       final allExpenses = expensesState.value!;
       final totalSpent = allExpenses.fold(0.0, (sum, item) => sum + item.amount);
@@ -255,9 +282,9 @@ class WalletDetailScreen extends ConsumerWidget {
           maxChildSize: 0.95,
           minChildSize: 0.5,
           builder: (context, scrollController) => Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            decoration: BoxDecoration(
+              color: sheetColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: ListView(
@@ -270,18 +297,18 @@ class WalletDetailScreen extends ConsumerWidget {
                     decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
-                const Text("Analytics Dashboard", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+                Text("Analytics Dashboard", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
                 const SizedBox(height: 20),
                 BudgetSummaryCard(monthlyBudget: wallet.monthlyBudget, totalSpent: totalSpent),
                 const SizedBox(height: 20),
                 SpendingTrendChart(expenses: allExpenses),
                 const SizedBox(height: 20),
-                const Text("Category Breakdown", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text("Category Breakdown", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
                 const SizedBox(height: 10),
                 Card(
                   elevation: 0,
-                  color: Colors.grey[50],
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.shade200)),
+                  color: isDark ? const Color(0xFF2C2C2C) : Colors.grey[50],
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: isDark ? Colors.transparent : Colors.grey.shade200)),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     child: CategoryPieChart(expenses: allExpenses),
