@@ -10,6 +10,7 @@ import 'package:monthly_expense_flutter_project/features/wallet/presentation/add
 import 'package:monthly_expense_flutter_project/features/wallet/presentation/wallet_detail_screen.dart';
 import 'package:monthly_expense_flutter_project/features/savings/presentation/savings_list_screen.dart';
 import 'package:monthly_expense_flutter_project/features/analytics/presentation/summary_screen.dart';
+import '../providers/theme_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -18,15 +19,31 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final walletListAsync = ref.watch(walletListProvider);
 
+    // 1. WATCH THEME
+    final isDark = ref.watch(themeProvider);
+
+    // 2. DEFINE COLORS
+    final bgColor = isDark ? const Color(0xFF121212) : Colors.grey[100];
+    final appBarColor = isDark ? const Color(0xFF1E1E1E) : Colors.teal;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Scaffold(
-      backgroundColor: Colors.grey[100], // Softer background
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: const Text("My Wallets", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.teal,
+        backgroundColor: appBarColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          // Quick Toggle for convenience
+          IconButton(
+            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+            onPressed: () => ref.read(themeProvider.notifier).state = !isDark,
+          )
+        ],
       ),
-      drawer: _buildDrawer(context, ref),
+      drawer: _buildDrawer(context, ref, isDark),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           showDialog(context: context, builder: (_) => const AddWalletDialog());
@@ -39,18 +56,25 @@ class HomeScreen extends ConsumerWidget {
       body: walletListAsync.when(
         data: (wallets) {
           if (wallets.isEmpty) {
-            return _buildEmptyState();
+            return _buildEmptyState(isDark);
           }
-          return _buildGroupedWalletList(context, ref, wallets);
+          return _buildGroupedWalletList(context, ref, wallets, isDark, textColor, subTextColor);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text("Error: $err")),
+        error: (err, stack) => Center(child: Text("Error: $err", style: TextStyle(color: textColor))),
       ),
     );
   }
 
   // --- 1. GROUPING LOGIC ---
-  Widget _buildGroupedWalletList(BuildContext context, WidgetRef ref, List<WalletModel> wallets) {
+  Widget _buildGroupedWalletList(
+      BuildContext context,
+      WidgetRef ref,
+      List<WalletModel> wallets,
+      bool isDark,
+      Color textColor,
+      Color? subTextColor
+      ) {
     // Helper to generate group keys
     String getGroupKey(WalletModel wallet) {
       final now = DateTime.now();
@@ -59,7 +83,6 @@ class HomeScreen extends ConsumerWidget {
       } else if (wallet.year == now.year && wallet.month == now.month - 1) {
         return "Last Month";
       } else {
-        // e.g., "October 2025"
         final date = DateTime(wallet.year, wallet.month);
         return DateFormat('MMMM yyyy').format(date);
       }
@@ -91,7 +114,7 @@ class HomeScreen extends ConsumerWidget {
               child: Text(
                 key.toUpperCase(),
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: subTextColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                   letterSpacing: 1.2,
@@ -99,33 +122,37 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             // Wallet Cards
-            ...groupWallets.map((wallet) => _WalletCard(wallet: wallet, ref: ref)),
+            ...groupWallets.map((wallet) => _WalletCard(wallet: wallet, ref: ref, isDark: isDark)),
           ],
         );
       },
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.account_balance_wallet_outlined, size: 80, color: Colors.grey[300]),
+          Icon(Icons.account_balance_wallet_outlined, size: 80, color: isDark ? Colors.grey[700] : Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
             "No wallets yet",
-            style: TextStyle(fontSize: 20, color: Colors.grey[600], fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 20, color: isDark ? Colors.grey[400] : Colors.grey[600], fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          const Text("Create a monthly budget to get started.", style: TextStyle(color: Colors.grey)),
+          Text("Create a monthly budget to get started.", style: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey)),
         ],
       ),
     );
   }
 
-  Widget _buildDrawer(BuildContext context, WidgetRef ref) {
+  Widget _buildDrawer(BuildContext context, WidgetRef ref, bool isDark) {
+    final drawerBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Drawer(
+      backgroundColor: drawerBg,
       child: Column(
         children: [
           UserAccountsDrawerHeader(
@@ -146,7 +173,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           ListTile(
             leading: const Icon(Icons.savings, color: Colors.green),
-            title: const Text("Savings Goals"),
+            title: Text("Savings Goals", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => const SavingsListScreen()));
@@ -154,26 +181,26 @@ class HomeScreen extends ConsumerWidget {
           ),
           ListTile(
             leading: const Icon(Icons.bar_chart_rounded, color: Colors.purple),
-            title: const Text("Global Summary"),
+            title: Text("Global Summary", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => const SummaryScreen()));
             },
           ),
-          const Divider(),
+          Divider(color: isDark ? Colors.grey[800] : Colors.grey[300]),
           ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text("Settings"),
+            leading: Icon(Icons.settings, color: textColor),
+            title: Text("Settings", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
           ),
           const Spacer(),
-          const Divider(),
+          Divider(color: isDark ? Colors.grey[800] : Colors.grey[300]),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text("Logout"),
+            title: const Text("Logout", style: TextStyle(color: Colors.red)),
             onTap: () {
               ref.read(authRepositoryProvider).signOut();
             },
@@ -185,21 +212,28 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-// --- 2. MODERN WALLET CARD ---
+// --- 2. MODERN WALLET CARD (THEME AWARE) ---
 class _WalletCard extends StatelessWidget {
   final WalletModel wallet;
   final WidgetRef ref;
+  final bool isDark;
 
-  const _WalletCard({required this.wallet, required this.ref});
+  const _WalletCard({required this.wallet, required this.ref, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
+    // Colors
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final shadowColor = isDark ? Colors.transparent : Colors.teal.withOpacity(0.15);
+
     // Calculate progress
     final double progress = (wallet.monthlyBudget == 0)
         ? 0
         : (wallet.monthlyBudget - wallet.currentBalance) / wallet.monthlyBudget;
 
-    // Clamp progress between 0 and 1
+    // Clamp progress
     final double safeProgress = progress.clamp(0.0, 1.0);
 
     // Dynamic Colors based on balance status
@@ -211,11 +245,11 @@ class _WalletCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.teal.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: shadowColor, blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Material(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -227,7 +261,7 @@ class _WalletCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Row: Name and Menu
+                // Top Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -236,23 +270,23 @@ class _WalletCard extends StatelessWidget {
                       children: [
                         Text(
                           wallet.name,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           DateFormat('MMMM yyyy').format(DateTime(wallet.year, wallet.month)),
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                          style: TextStyle(fontSize: 12, color: subTextColor),
                         ),
                       ],
                     ),
-                    _buildPopupMenu(context, ref, wallet),
+                    _buildPopupMenu(context, ref, wallet, isDark, textColor),
                   ],
                 ),
 
                 const SizedBox(height: 20),
 
-                // Middle Row: Balance
-                Text("Current Balance", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                // Balance
+                Text("Current Balance", style: TextStyle(fontSize: 12, color: subTextColor)),
                 Row(
                   children: [
                     Text(
@@ -260,7 +294,7 @@ class _WalletCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: isNegative ? Colors.red : Colors.teal.shade800,
+                        color: isNegative ? Colors.red : Colors.teal,
                       ),
                     ),
                   ],
@@ -268,13 +302,13 @@ class _WalletCard extends StatelessWidget {
 
                 const SizedBox(height: 15),
 
-                // Bottom Row: Budget Progress
+                // Progress Bar
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: 1.0 - safeProgress, // Fill represents remaining money
+                    value: 1.0 - safeProgress,
                     minHeight: 8,
-                    backgroundColor: Colors.grey[200],
+                    backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
                     color: isNegative ? Colors.red : (isLowBalance ? Colors.orange : Colors.green),
                   ),
                 ),
@@ -284,11 +318,11 @@ class _WalletCard extends StatelessWidget {
                   children: [
                     Text(
                       "Spent: ${CurrencyHelper.format(wallet.monthlyBudget - wallet.currentBalance)}",
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 12, color: subTextColor),
                     ),
                     Text(
                       "Limit: ${CurrencyHelper.format(wallet.monthlyBudget)}",
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 12, color: subTextColor),
                     ),
                   ],
                 )
@@ -300,30 +334,32 @@ class _WalletCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPopupMenu(BuildContext context, WidgetRef ref, WalletModel wallet) {
+  Widget _buildPopupMenu(BuildContext context, WidgetRef ref, WalletModel wallet, bool isDark, Color textColor) {
     return PopupMenuButton(
-      icon: Icon(Icons.more_horiz, color: Colors.grey[400]),
+      icon: Icon(Icons.more_horiz, color: isDark ? Colors.grey[400] : Colors.grey[400]),
+      color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: (value) {
         if (value == 'edit') {
           showDialog(context: context, builder: (_) => AddWalletDialog(walletToEdit: wallet));
         } else if (value == 'delete') {
-          _confirmDelete(context, ref, wallet);
+          _confirmDelete(context, ref, wallet, isDark, textColor);
         }
       },
       itemBuilder: (context) => [
-        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 20), SizedBox(width: 8), Text("Edit")])),
-        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 8), Text("Delete", style: TextStyle(color: Colors.red))])),
+        PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 20, color: textColor), const SizedBox(width: 8), Text("Edit", style: TextStyle(color: textColor))])),
+        PopupMenuItem(value: 'delete', child: Row(children: [const Icon(Icons.delete, color: Colors.red, size: 20), const SizedBox(width: 8), const Text("Delete", style: TextStyle(color: Colors.red))])),
       ],
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, WalletModel wallet) {
+  void _confirmDelete(BuildContext context, WidgetRef ref, WalletModel wallet, bool isDark, Color textColor) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Delete Wallet?"),
-        content: const Text("This cannot be undone. All expenses in this wallet will be lost."),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text("Delete Wallet?", style: TextStyle(color: textColor)),
+        content: Text("This cannot be undone. All expenses in this wallet will be lost.", style: TextStyle(color: textColor)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
