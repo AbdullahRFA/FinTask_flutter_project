@@ -14,7 +14,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
   bool _isLoading = false;
+  bool _isPasswordVisible = false; // 1. State variable for visibility
 
   @override
   void dispose() {
@@ -129,12 +131,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             validator: (v) => v!.isEmpty || !v.contains('@') ? 'Invalid email' : null,
                           ),
                           const SizedBox(height: 16),
+
+                          // 2. Modified Password Field
                           TextFormField(
                             controller: _passwordController,
-                            obscureText: true,
+                            obscureText: !_isPasswordVisible, // Toggle logic
                             decoration: InputDecoration(
                               labelText: "Password",
                               prefixIcon: const Icon(Icons.lock_outline),
+                              // Eye Icon Logic
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _isPasswordVisible = !_isPasswordVisible;
+                                  });
+                                },
+                              ),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -143,6 +159,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             validator: (v) => v!.length < 6 ? 'Password too short' : null,
                           ),
+
+                          const SizedBox(height: 16),
+
 
                           Align(
                             alignment: Alignment.centerRight,
