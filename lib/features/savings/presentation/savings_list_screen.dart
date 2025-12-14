@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:monthly_expense_flutter_project/core/utils/currency_helper.dart';
 import 'package:monthly_expense_flutter_project/features/wallet/data/wallet_repository.dart';
+import '../../providers/theme_provider.dart'; // Import Theme Provider
 import '../data/savings_repository.dart';
 import '../domain/savings_goal_model.dart';
 import 'add_goal_dialog.dart';
@@ -11,8 +12,14 @@ import 'deposit_dialog.dart';
 class SavingsListScreen extends ConsumerWidget {
   const SavingsListScreen({super.key});
 
-  void _showDeleteDialog(BuildContext context, WidgetRef ref, String goalId, double currentSaved) {
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, String goalId, double currentSaved, bool isDark) {
     String? selectedWalletId;
+
+    // Dynamic Colors for Dialog
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final containerColor = isDark ? Colors.teal.withOpacity(0.1) : Colors.teal.shade50;
+    final borderColor = isDark ? Colors.teal.withOpacity(0.3) : Colors.teal.shade100;
 
     showDialog(
       context: context,
@@ -21,21 +28,22 @@ class SavingsListScreen extends ConsumerWidget {
           final walletsAsync = ref.watch(walletListProvider);
 
           return AlertDialog(
+            backgroundColor: cardColor,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text("Delete Goal?", style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text("Delete Goal?", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Are you sure you want to delete this goal?"),
+                Text("Are you sure you want to delete this goal?", style: TextStyle(color: textColor)),
                 const SizedBox(height: 15),
                 if (currentSaved > 0) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.teal.shade50,
+                      color: containerColor,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.teal.shade100),
+                      border: Border.all(color: borderColor),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,39 +53,43 @@ class SavingsListScreen extends ConsumerWidget {
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16),
                         ),
                         const SizedBox(height: 5),
-                        const Text("Select a wallet to receive funds:", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text("Select a wallet to receive funds:", style: TextStyle(fontSize: 12, color: textColor.withOpacity(0.7))),
                       ],
                     ),
                   ),
                   const SizedBox(height: 15),
                   walletsAsync.when(
                     data: (wallets) {
-                      if (wallets.isEmpty) return const Text("No wallets found to refund.");
+                      if (wallets.isEmpty) return Text("No wallets found to refund.", style: TextStyle(color: textColor));
                       if (selectedWalletId == null && wallets.isNotEmpty) {
                         selectedWalletId = wallets.first.id;
                       }
                       return DropdownButtonFormField<String>(
                         value: selectedWalletId,
                         isExpanded: true,
+                        dropdownColor: cardColor,
                         decoration: InputDecoration(
                           labelText: "Refund To",
+                          labelStyle: TextStyle(color: textColor.withOpacity(0.7)),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade600)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
+                        style: TextStyle(color: textColor),
                         items: wallets.map((w) => DropdownMenuItem(
                           value: w.id,
-                          child: Text(w.name),
+                          child: Text(w.name, style: TextStyle(color: textColor)),
                         )).toList(),
                         onChanged: (val) => setState(() => selectedWalletId = val),
                       );
                     },
                     loading: () => const CircularProgressIndicator(),
-                    error: (e, s) => Text("Error: $e"),
+                    error: (e, s) => Text("Error: $e", style: TextStyle(color: textColor)),
                   ),
                 ] else ...[
-                  const Text(
+                  Text(
                     "This goal has no funds. It will be deleted permanently.",
-                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                    style: TextStyle(color: textColor.withOpacity(0.6), fontStyle: FontStyle.italic),
                   ),
                 ]
               ],
@@ -85,7 +97,7 @@ class SavingsListScreen extends ConsumerWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text("Cancel"),
+                child: Text("Cancel", style: TextStyle(color: textColor.withOpacity(0.7))),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -113,13 +125,24 @@ class SavingsListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final savingsAsync = ref.watch(savingsListProvider);
 
+    // 1. WATCH THEME STATE
+    final isDark = ref.watch(themeProvider);
+
+    // 2. DEFINE DYNAMIC COLORS
+    final bgColor = isDark ? const Color(0xFF121212) : Colors.grey[50];
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final shadowColor = isDark ? Colors.transparent : Colors.teal.withOpacity(0.08);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: const Text("Savings Goals", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
+        title: Text("Savings Goals", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+        backgroundColor: cardColor,
+        foregroundColor: textColor,
         elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
       ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
@@ -128,7 +151,7 @@ class SavingsListScreen extends ConsumerWidget {
         foregroundColor: Colors.white,
         onPressed: () => showDialog(
             context: context,
-            builder: (_) => const AddGoalDialog()
+            builder: (_) => const AddGoalDialog() // Note: AddGoalDialog also needs to be theme-aware, assuming it inherits Theme.of(context)
         ),
       ),
       body: savingsAsync.when(
@@ -138,11 +161,11 @@ class SavingsListScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.savings_outlined, size: 80, color: Colors.grey[300]),
+                  Icon(Icons.savings_outlined, size: 80, color: isDark ? Colors.grey[700] : Colors.grey[300]),
                   const SizedBox(height: 16),
-                  Text("Dream Big!", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+                  Text("Dream Big!", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: subTextColor)),
                   const SizedBox(height: 8),
-                  const Text("Create a goal to start saving.", style: TextStyle(color: Colors.grey)),
+                  Text("Create a goal to start saving.", style: TextStyle(color: subTextColor)),
                 ],
               ),
             );
@@ -153,13 +176,18 @@ class SavingsListScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               return _SavingsGoalCard(
                 goal: goals[index],
-                onDelete: () => _showDeleteDialog(context, ref, goals[index].id, goals[index].currentSaved),
+                isDark: isDark,
+                cardColor: cardColor,
+                textColor: textColor,
+                subTextColor: subTextColor!,
+                shadowColor: shadowColor,
+                onDelete: () => _showDeleteDialog(context, ref, goals[index].id, goals[index].currentSaved, isDark),
               );
             },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text("Error: $e")),
+        error: (e, s) => Center(child: Text("Error: $e", style: TextStyle(color: textColor))),
       ),
     );
   }
@@ -168,8 +196,21 @@ class SavingsListScreen extends ConsumerWidget {
 class _SavingsGoalCard extends StatelessWidget {
   final SavingsGoalModel goal;
   final VoidCallback onDelete;
+  final bool isDark;
+  final Color cardColor;
+  final Color textColor;
+  final Color subTextColor;
+  final Color shadowColor;
 
-  const _SavingsGoalCard({required this.goal, required this.onDelete});
+  const _SavingsGoalCard({
+    required this.goal,
+    required this.onDelete,
+    required this.isDark,
+    required this.cardColor,
+    required this.textColor,
+    required this.subTextColor,
+    required this.shadowColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -177,13 +218,18 @@ class _SavingsGoalCard extends StatelessWidget {
     final String percentage = (progress * 100).toStringAsFixed(1);
     final bool isCompleted = progress >= 1.0;
 
+    // Dynamic background for icons
+    final iconBgColor = isCompleted
+        ? (isDark ? Colors.green.withOpacity(0.2) : Colors.green.shade50)
+        : (isDark ? Colors.teal.withOpacity(0.2) : Colors.teal.shade50);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.teal.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 5)),
+          BoxShadow(color: shadowColor, blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
       child: Padding(
@@ -196,7 +242,7 @@ class _SavingsGoalCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: isCompleted ? Colors.green.shade50 : Colors.teal.shade50,
+                    color: iconBgColor,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -212,18 +258,18 @@ class _SavingsGoalCard extends StatelessWidget {
                     children: [
                       Text(
                         goal.title,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         "Target: ${DateFormat('MMM d, y').format(goal.deadline)}",
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        style: TextStyle(fontSize: 12, color: subTextColor),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.delete_outline, color: Colors.grey[400]),
+                  icon: Icon(Icons.delete_outline, color: subTextColor.withOpacity(0.5)),
                   onPressed: onDelete,
                 )
               ],
@@ -237,7 +283,7 @@ class _SavingsGoalCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Saved", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text("Saved", style: TextStyle(fontSize: 12, color: subTextColor)),
                     Text(
                       CurrencyHelper.format(goal.currentSaved),
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal),
@@ -247,10 +293,10 @@ class _SavingsGoalCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text("Goal", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text("Goal", style: TextStyle(fontSize: 12, color: subTextColor)),
                     Text(
                       CurrencyHelper.format(goal.targetAmount),
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor.withOpacity(0.8)),
                     ),
                   ],
                 ),
@@ -263,7 +309,7 @@ class _SavingsGoalCard extends StatelessWidget {
                   height: 12,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: isDark ? Colors.grey[800] : Colors.grey[100],
                     borderRadius: BorderRadius.circular(6),
                   ),
                 ),
@@ -291,7 +337,7 @@ class _SavingsGoalCard extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 "$percentage% Completed",
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: subTextColor),
               ),
             ),
 
