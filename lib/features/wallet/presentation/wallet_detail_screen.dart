@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:monthly_expense_flutter_project/features/wallet/domain/wallet_model.dart';
 import 'package:monthly_expense_flutter_project/features/wallet/data/wallet_repository.dart';
 import 'package:monthly_expense_flutter_project/features/expenses/data/expense_repository.dart';
@@ -8,8 +7,8 @@ import 'package:monthly_expense_flutter_project/features/expenses/presentation/a
 import 'package:monthly_expense_flutter_project/core/utils/expense_grouper.dart';
 import 'package:monthly_expense_flutter_project/features/analytics/presentation/category_pie_chart.dart';
 import '../../../core/utils/currency_helper.dart';
-// import 'package:monthly_expense_flutter_project/core/utils/csv_helper.dart';
-import 'package:monthly_expense_flutter_project/core/utils/pdf_helper.dart';
+import 'package:monthly_expense_flutter_project/core/utils/pdf_helper.dart'; // Make sure this is PdfHelper now
+
 class WalletDetailScreen extends ConsumerWidget {
   final WalletModel wallet;
 
@@ -51,62 +50,22 @@ class WalletDetailScreen extends ConsumerWidget {
             },
           ),
 
-          // --- EXPORT CSV BUTTON (FIXED) ---
-          // IconButton(
-          //   icon: const Icon(Icons.download),
-          //   tooltip: "Export CSV",
-          //   onPressed: () async { // <--- 1. Marked ASYNC
-          //     final expensesState = ref.read(expenseListProvider(wallet.id));
-          //
-          //     if (expensesState.hasValue && expensesState.value!.isNotEmpty) {
-          //       try {
-          //         // <--- 2. Try to Export
-          //         await CsvHelper.exportExpenses(expensesState.value!);
-          //
-          //         if (context.mounted) {
-          //           ScaffoldMessenger.of(context).showSnackBar(
-          //             const SnackBar(content: Text("Export successful!"), backgroundColor: Colors.green),
-          //           );
-          //         }
-          //       } catch (e, stack) {
-          //         // <--- 3. CATCH & PRINT ERROR
-          //         debugPrint("CSV EXPORT ERROR: $e");
-          //         debugPrint(stack.toString());
-          //
-          //         if (context.mounted) {
-          //           ScaffoldMessenger.of(context).showSnackBar(
-          //             SnackBar(content: Text("Export Failed: $e"), backgroundColor: Colors.red),
-          //           );
-          //         }
-          //       }
-          //     } else {
-          //       ScaffoldMessenger.of(context).showSnackBar(
-          //         const SnackBar(content: Text("No expenses to export!")),
-          //       );
-          //     }
-          //   },
-          // ),
-
-          // ... inside AppBar actions ...
-
-          // PDF EXPORT BUTTON
+          // --- EXPORT PDF BUTTON ---
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf), // Changed Icon
+            icon: const Icon(Icons.picture_as_pdf),
             tooltip: "Export PDF",
             onPressed: () async {
               final expensesState = ref.read(expenseListProvider(wallet.id));
 
               if (expensesState.hasValue && expensesState.value!.isNotEmpty) {
                 try {
-                  // Call the new PDF Helper
-                  // We pass the list AND the wallet name for the report title
+                  // Call PDF Helper
                   await PdfHelper.generateAndPrint(expensesState.value!, wallet.name);
-
                 } catch (e) {
                   debugPrint("PDF ERROR: $e");
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("PDF Error: $e"), backgroundColor: Colors.red),
+                      SnackBar(content: Text("Export Failed: $e"), backgroundColor: Colors.red),
                     );
                   }
                 }
@@ -204,6 +163,13 @@ class WalletDetailScreen extends ConsumerWidget {
                           ),
                         ),
                         ...dayExpenses.map((expense) {
+                          // --- LOGIC FOR REFUND COLORS ---
+                          final bool isRefund = expense.amount < 0;
+                          final double displayAmount = expense.amount.abs();
+                          final String sign = isRefund ? "+" : "-";
+                          final Color color = isRefund ? Colors.green : Colors.red;
+                          // -------------------------------
+
                           return Dismissible(
                             key: ValueKey(expense.id),
                             direction: DismissDirection.endToStart,
@@ -237,15 +203,22 @@ class WalletDetailScreen extends ConsumerWidget {
                               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: Colors.teal.shade100,
-                                  child: Icon(_getIconForCategory(expense.category), color: Colors.teal),
+                                  backgroundColor: isRefund ? Colors.green.shade100 : Colors.teal.shade100,
+                                  child: Icon(
+                                      _getIconForCategory(expense.category),
+                                      color: isRefund ? Colors.green : Colors.teal
+                                  ),
                                 ),
                                 title: Text(expense.title),
                                 subtitle: Text(expense.category),
+
+                                // --- UPDATED TRAILING WIDGET ---
                                 trailing: Text(
-                                  "-${expense.amount}",
-                                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                  "$sign${CurrencyHelper.format(displayAmount)}",
+                                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
                                 ),
+                                // -------------------------------
+
                                 onLongPress: () {
                                   final currentBalance = walletAsync.value?.currentBalance ?? wallet.currentBalance;
                                   showDialog(
@@ -277,12 +250,37 @@ class WalletDetailScreen extends ConsumerWidget {
 
   IconData _getIconForCategory(String category) {
     switch (category) {
+    // Essentials
       case 'Food': return Icons.fastfood;
+      case 'Groceries': return Icons.local_grocery_store;
       case 'Transport': return Icons.directions_bus;
-      case 'Bills': return Icons.receipt;
+      case 'Fuel': return Icons.local_gas_station;
+      case 'Rent': return Icons.house;
+      case 'Bills': return Icons.receipt_long; // Electricity, Water, Gas
+      case 'Education': return Icons.school;
+
+    // Lifestyle
       case 'Shopping': return Icons.shopping_bag;
       case 'Entertainment': return Icons.movie;
+      case 'Personal Care': return Icons.content_cut; // Barber/Salon
+      case 'Pets': return Icons.pets;
+      case 'Travel': return Icons.flight;
+      case 'Gifts': return Icons.card_giftcard;
+
+    // Health & Family
       case 'Health': return Icons.local_hospital;
+      case 'Family': return Icons.family_restroom;
+
+    // Financial & Obligations
+      case 'Donation': return Icons.volunteer_activism; // Charity/Zakat
+      case 'Loan': return Icons.account_balance; // Debt repayment
+      case 'Investment': return Icons.trending_up; // Stocks/Business
+      case 'Savings': return Icons.savings;
+
+    // Maintenance & Misc
+      case 'Repairs': return Icons.build;
+      case 'Others': return Icons.category;
+
       default: return Icons.attach_money;
     }
   }

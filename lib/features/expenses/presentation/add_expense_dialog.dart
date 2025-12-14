@@ -28,7 +28,31 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
   late DateTime _selectedDate; // Variable to store the picked date
 
   String _selectedCategory = 'Food';
-  final List<String> _categories = ['Food', 'Transport', 'Bills', 'Shopping', 'Entertainment', 'Health'];
+
+  // Expanded list to cover all user types
+  final List<String> _categories = [
+    'Food',
+    'Groceries',
+    'Transport',
+    'Fuel',
+    'Rent',
+    'Bills',
+    'Education',
+    'Shopping',
+    'Entertainment',
+    'Health',
+    'Personal Care',
+    'Pets',
+    'Travel',
+    'Gifts',
+    'Donation',
+    'Loan',
+    'Investment',
+    'Family',
+    'Repairs',
+    'Savings',
+    'Others'
+  ];
   bool _isLoading = false;
 
   @override

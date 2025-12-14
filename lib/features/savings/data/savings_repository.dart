@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/data/auth_repository.dart';
 import '../domain/savings_goal_model.dart';
+import '../../expenses/domain/expense_model.dart'; // Import Expense Model
 
 class SavingsRepository {
   final FirebaseFirestore _firestore;
@@ -22,7 +23,7 @@ class SavingsRepository {
       id: docRef.id,
       title: title,
       targetAmount: targetAmount,
-      currentSaved: 0, // Starts at 0
+      currentSaved: 0,
       deadline: deadline,
     );
 
@@ -30,14 +31,17 @@ class SavingsRepository {
   }
 
   // 2. DEPOSIT MONEY (Transfer from Wallet -> Savings)
+  // Modified to add an "Expense" record to the wallet
   Future<void> depositToGoal({
     required String walletId,
     required String goalId,
+    required String goalTitle, // <--- NEW: Need title for the expense name
     required double amount,
   }) async {
     return _firestore.runTransaction((transaction) async {
       final walletRef = _firestore.collection('users').doc(userId).collection('wallets').doc(walletId);
       final goalRef = _firestore.collection('users').doc(userId).collection('savings_goals').doc(goalId);
+      final expenseRef = walletRef.collection('expenses').doc(); // New Expense Doc
 
       // Check Wallet Balance
       final walletSnapshot = await transaction.get(walletRef);
@@ -47,15 +51,25 @@ class SavingsRepository {
         throw Exception("Insufficient funds in wallet!");
       }
 
-      // Deduct from Wallet
+      // 1. Deduct from Wallet Balance
       transaction.update(walletRef, {
         'currentBalance': FieldValue.increment(-amount),
       });
 
-      // Add to Goal
+      // 2. Add to Goal
       transaction.update(goalRef, {
         'currentSaved': FieldValue.increment(amount),
       });
+
+      // 3. CREATE EXPENSE RECORD (So user sees where money went)
+      final depositExpense = ExpenseModel(
+        id: expenseRef.id,
+        title: "Deposit: $goalTitle",
+        amount: amount,
+        category: "Savings", // Special Category
+        date: DateTime.now(),
+      );
+      transaction.set(expenseRef, depositExpense.toMap());
     });
   }
 
@@ -66,31 +80,42 @@ class SavingsRepository {
     });
   }
 
-  // 4. DELETE GOAL (With Refund Logic)
+  // 4. DELETE GOAL (With Refund & Income Record)
   Future<void> deleteGoal({required String goalId, String? refundWalletId}) async {
     return _firestore.runTransaction((transaction) async {
       final goalRef = _firestore.collection('users').doc(userId).collection('savings_goals').doc(goalId);
 
-      // 1. Read the goal to see how much money is in it
+      // Read the goal first
       final goalSnapshot = await transaction.get(goalRef);
-      if (!goalSnapshot.exists) return; // Already deleted
+      if (!goalSnapshot.exists) return;
 
       final double savedAmount = (goalSnapshot.data()?['currentSaved'] ?? 0).toDouble();
+      final String goalTitle = goalSnapshot.data()?['title'] ?? 'Goal';
 
-      // 2. If there is money AND a wallet selected, refund it
+      // If money exists and we have a wallet to refund to
       if (savedAmount > 0 && refundWalletId != null) {
         final walletRef = _firestore.collection('users').doc(userId).collection('wallets').doc(refundWalletId);
+        final expenseRef = walletRef.collection('expenses').doc();
 
-        // Check if wallet exists before trying to update (Safety)
-        final walletSnapshot = await transaction.get(walletRef);
-        if (walletSnapshot.exists) {
-          transaction.update(walletRef, {
-            'currentBalance': FieldValue.increment(savedAmount),
-          });
-        }
+        // 1. Refund the Balance
+        transaction.update(walletRef, {
+          'currentBalance': FieldValue.increment(savedAmount),
+        });
+
+        // 2. CREATE REFUND RECORD (Negative Expense = Income)
+        // We use a negative amount so it stands out, or you can use positive and handle it differently.
+        // Standard logic: If I delete this "Negative Expense" later, it will SUBTRACT money, which is correct.
+        final refundExpense = ExpenseModel(
+          id: expenseRef.id,
+          title: "Refund: $goalTitle",
+          amount: -savedAmount, // Negative amount indicates money coming back
+          category: "Savings",
+          date: DateTime.now(),
+        );
+        transaction.set(expenseRef, refundExpense.toMap());
       }
 
-      // 3. Delete the goal
+      // Delete the goal
       transaction.delete(goalRef);
     });
   }

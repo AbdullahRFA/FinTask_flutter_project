@@ -61,6 +61,7 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
         ElevatedButton(
+          // ... inside ElevatedButton ...
           onPressed: _isLoading ? null : () async {
             if (_selectedWalletId == null || _amountController.text.isEmpty) return;
             setState(() => _isLoading = true);
@@ -68,6 +69,7 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
               await ref.read(savingsRepositoryProvider).depositToGoal(
                 walletId: _selectedWalletId!,
                 goalId: widget.goalId,
+                goalTitle: widget.goalTitle, // <--- PASS THE TITLE HERE
                 amount: double.parse(_amountController.text.trim()),
               );
               if (mounted) Navigator.pop(context);
