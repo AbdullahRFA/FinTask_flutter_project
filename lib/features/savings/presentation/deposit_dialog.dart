@@ -4,6 +4,7 @@ import '../../wallet/data/wallet_repository.dart';
 import '../../wallet/domain/wallet_model.dart';
 import '../data/savings_repository.dart';
 import '../../../core/utils/currency_helper.dart';
+import '../../providers/theme_provider.dart'; // Import Theme Provider
 
 class DepositDialog extends ConsumerStatefulWidget {
   final String goalId;
@@ -24,7 +25,19 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
   Widget build(BuildContext context) {
     final walletsAsync = ref.watch(walletListProvider);
 
+    // 1. WATCH THEME STATE
+    final isDark = ref.watch(themeProvider);
+
+    // 2. DEFINE DYNAMIC COLORS
+    final dialogColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey;
+    final inputFill = isDark ? const Color(0xFF2C2C2C) : Colors.grey[50];
+    final borderColor = isDark ? Colors.grey[800]! : Colors.grey.shade200;
+    final iconColor = isDark ? Colors.grey[400] : Colors.grey;
+
     return Dialog(
+      backgroundColor: dialogColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SingleChildScrollView(
         child: Padding(
@@ -39,16 +52,16 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade50,
+                      color: Colors.green.withOpacity(isDark ? 0.2 : 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.currency_exchange_rounded, color: Colors.green),
                   ),
                   const SizedBox(width: 16),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       "Transfer Funds",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                     ),
                   ),
                 ],
@@ -56,12 +69,12 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
               const SizedBox(height: 8),
               Text(
                 "Move money from a wallet to your '${widget.goalTitle}' goal.",
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: subTextColor, fontSize: 13),
               ),
               const SizedBox(height: 24),
 
               // 1. Source Wallet Selector
-              const Text("From Wallet", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text("From Wallet", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor)),
               const SizedBox(height: 8),
               walletsAsync.when(
                 data: (wallets) {
@@ -69,7 +82,7 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
                     return Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
+                        color: Colors.red.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
@@ -84,9 +97,11 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
                   return DropdownButtonFormField<String>(
                     value: _selectedWalletId,
                     isExpanded: true,
+                    dropdownColor: dialogColor,
+                    style: TextStyle(color: textColor),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: inputFill,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -94,21 +109,21 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
+                        borderSide: BorderSide(color: borderColor),
                       ),
                     ),
-                    hint: const Text("Select Source Wallet"),
+                    hint: Text("Select Source Wallet", style: TextStyle(color: subTextColor)),
                     items: wallets.map((w) {
                       return DropdownMenuItem(
                         value: w.id,
                         child: Row(
                           children: [
-                            const Icon(Icons.account_balance_wallet_outlined, size: 18, color: Colors.grey),
+                            Icon(Icons.account_balance_wallet_outlined, size: 18, color: iconColor),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 w.name,
-                                style: const TextStyle(fontSize: 14),
+                                style: TextStyle(fontSize: 14, color: textColor),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -129,23 +144,25 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
               const SizedBox(height: 20),
 
               // 2. Amount Input
-              const Text("Amount", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text("Amount", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor)),
               const SizedBox(height: 8),
               TextField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   hintText: "0.00",
-                  prefixIcon: const Icon(Icons.attach_money, color: Colors.grey),
+                  hintStyle: TextStyle(color: subTextColor),
+                  prefixIcon: Icon(Icons.attach_money, color: iconColor),
                   filled: true,
-                  fillColor: Colors.grey[50],
+                  fillColor: inputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    borderSide: BorderSide(color: borderColor),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -161,7 +178,7 @@ class _DepositDialogState extends ConsumerState<DepositDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text("Cancel", style: TextStyle(color: Colors.grey[600])),
+                    child: Text("Cancel", style: TextStyle(color: subTextColor)),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(

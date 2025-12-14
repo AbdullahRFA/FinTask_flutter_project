@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:monthly_expense_flutter_project/features/wallet/data/wallet_repository.dart';
 import 'package:monthly_expense_flutter_project/features/wallet/domain/wallet_model.dart';
 import 'package:monthly_expense_flutter_project/core/utils/currency_helper.dart';
+import '../../providers/theme_provider.dart'; // Import Theme
 
 class AddWalletDialog extends ConsumerStatefulWidget {
   final WalletModel? walletToEdit;
@@ -66,7 +67,17 @@ class _AddWalletDialogState extends ConsumerState<AddWalletDialog> {
     final walletListAsync = ref.watch(walletListProvider);
     final isEdit = widget.walletToEdit != null;
 
+    // THEME COLORS
+    final isDark = ref.watch(themeProvider);
+    final dialogColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
+    // FIX: Ensure non-nullable Colors
+    final Color inputFill = isDark ? const Color(0xFF2C2C2C) : (Colors.grey[50] ?? Colors.white);
+    final Color borderColor = isDark ? (Colors.grey[800] ?? Colors.grey) : (Colors.grey[200] ?? Colors.grey);
+
     return Dialog(
+      backgroundColor: dialogColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: SingleChildScrollView(
         child: Padding(
@@ -83,7 +94,7 @@ class _AddWalletDialogState extends ConsumerState<AddWalletDialog> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.teal.shade50,
+                        color: Colors.teal.withOpacity(isDark ? 0.2 : 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(isEdit ? Icons.edit_note_rounded : Icons.account_balance_wallet_rounded, color: Colors.teal),
@@ -91,7 +102,7 @@ class _AddWalletDialogState extends ConsumerState<AddWalletDialog> {
                     const SizedBox(width: 15),
                     Text(
                       isEdit ? "Edit Wallet" : "New Budget",
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                     ),
                   ],
                 ),
@@ -100,7 +111,8 @@ class _AddWalletDialogState extends ConsumerState<AddWalletDialog> {
                 // Name Input
                 TextFormField(
                   controller: _nameController,
-                  decoration: _buildInputDecoration("Wallet Name", "e.g., October 2025", Icons.label_outline),
+                  style: TextStyle(color: textColor),
+                  decoration: _buildInputDecoration("Wallet Name", "e.g., October 2025", Icons.label_outline, isDark, inputFill, borderColor),
                   validator: (val) => val!.isEmpty ? "Required" : null,
                 ),
                 const SizedBox(height: 16),
@@ -108,58 +120,61 @@ class _AddWalletDialogState extends ConsumerState<AddWalletDialog> {
                 // Budget Input
                 TextFormField(
                   controller: _amountController,
-                  decoration: _buildInputDecoration("Monthly Limit", "e.g., 25000", Icons.attach_money),
+                  style: TextStyle(color: textColor),
+                  decoration: _buildInputDecoration("Monthly Limit", "e.g., 25000", Icons.attach_money, isDark, inputFill, borderColor),
                   keyboardType: TextInputType.number,
                   validator: (val) => val!.isEmpty ? "Required" : null,
                 ),
                 const SizedBox(height: 24),
 
-                // Rollover Section (Only for New Wallets)
+                // Rollover Section
                 if (!isEdit) ...[
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.blueGrey.shade50,
+                      color: isDark ? const Color(0xFF253035) : Colors.blueGrey.shade50,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.blueGrey.shade100),
+                      border: Border.all(color: isDark ? Colors.transparent : Colors.blueGrey.shade100),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.history_edu_rounded, size: 18, color: Colors.blueGrey.shade700),
+                            Icon(Icons.history_edu_rounded, size: 18, color: isDark ? Colors.blueGrey.shade200 : Colors.blueGrey.shade700),
                             const SizedBox(width: 8),
-                            Text("Rollover Balance", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey.shade800)),
+                            Text("Rollover Balance", style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.blueGrey.shade100 : Colors.blueGrey.shade800)),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           "Carry over leftover cash from a previous wallet to start with a surplus.",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey),
                         ),
                         const SizedBox(height: 12),
 
                         walletListAsync.when(
                           data: (wallets) {
-                            if (wallets.isEmpty) return const Text("No previous wallets found.", style: TextStyle(fontSize: 12, color: Colors.grey));
+                            if (wallets.isEmpty) return Text("No previous wallets found.", style: TextStyle(fontSize: 12, color: isDark ? Colors.grey : Colors.grey));
                             return DropdownButtonFormField<String>(
                               value: _selectedRolloverWalletId,
                               isExpanded: true,
+                              dropdownColor: dialogColor,
+                              style: TextStyle(color: textColor),
                               decoration: InputDecoration(
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                                 hintText: "Select previous wallet",
-                                hintStyle: const TextStyle(fontSize: 13),
+                                hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
                               ),
                               items: wallets.map((w) {
                                 return DropdownMenuItem(
                                   value: w.id,
                                   child: Text(
                                     "${w.name} (${CurrencyHelper.format(w.currentBalance)})",
-                                    style: const TextStyle(fontSize: 13),
+                                    style: TextStyle(fontSize: 13, color: textColor),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 );
@@ -180,12 +195,12 @@ class _AddWalletDialogState extends ConsumerState<AddWalletDialog> {
 
                         if (_selectedRolloverWalletId != null) ...[
                           const SizedBox(height: 12),
-                          const Divider(),
+                          Divider(color: isDark ? Colors.grey[700] : Colors.grey[300]),
                           const SizedBox(height: 4),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text("Starting Balance:", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                              Text("Starting Balance:", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: textColor)),
                               Text(
                                 CurrencyHelper.format((double.tryParse(_amountController.text) ?? 0) + _rolloverAmount),
                                 style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
@@ -205,7 +220,7 @@ class _AddWalletDialogState extends ConsumerState<AddWalletDialog> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text("Cancel", style: TextStyle(color: Colors.grey[600])),
+                      child: Text("Cancel", style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600])),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
@@ -230,15 +245,17 @@ class _AddWalletDialogState extends ConsumerState<AddWalletDialog> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String label, String hint, IconData icon) {
+  InputDecoration _buildInputDecoration(String label, String hint, IconData icon, bool isDark, Color fill, Color border) {
     return InputDecoration(
       labelText: label,
+      labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.grey),
+      hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400]),
+      prefixIcon: Icon(icon, color: isDark ? Colors.grey[400] : Colors.grey),
       filled: true,
-      fillColor: Colors.grey[50],
+      fillColor: fill,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: border)),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.teal, width: 2)),
     );
   }

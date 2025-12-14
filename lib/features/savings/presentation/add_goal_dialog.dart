@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../data/savings_repository.dart';
+import '../../providers/theme_provider.dart'; // Import Theme
 
 class AddGoalDialog extends ConsumerStatefulWidget {
   const AddGoalDialog({super.key});
@@ -43,9 +44,13 @@ class _AddGoalDialogState extends ConsumerState<AddGoalDialog> {
       firstDate: DateTime.now(),
       lastDate: DateTime(2035),
       builder: (context, child) {
+        // Theme the DatePicker dynamically
+        final isDark = ref.read(themeProvider);
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: Colors.teal),
+            colorScheme: isDark
+                ? const ColorScheme.dark(primary: Colors.teal, surface: Color(0xFF1E1E1E))
+                : const ColorScheme.light(primary: Colors.teal),
           ),
           child: child!,
         );
@@ -56,7 +61,19 @@ class _AddGoalDialogState extends ConsumerState<AddGoalDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. WATCH THEME STATE
+    final isDark = ref.watch(themeProvider);
+
+    // 2. DEFINE DYNAMIC COLORS
+    final dialogColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey;
+    final inputFill = isDark ? const Color(0xFF2C2C2C) : Colors.grey[50]!;
+    final borderColor = isDark ? Colors.grey[800]! : Colors.grey.shade200;
+    final iconColor = isDark ? Colors.grey[400] : Colors.grey;
+
     return Dialog(
+      backgroundColor: dialogColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SingleChildScrollView(
         child: Padding(
@@ -73,15 +90,15 @@ class _AddGoalDialogState extends ConsumerState<AddGoalDialog> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.teal.shade50,
+                        color: Colors.teal.withOpacity(isDark ? 0.2 : 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.flag_rounded, color: Colors.teal),
                     ),
                     const SizedBox(width: 16),
-                    const Text(
+                    Text(
                       "New Savings Goal",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                     ),
                   ],
                 ),
@@ -90,7 +107,8 @@ class _AddGoalDialogState extends ConsumerState<AddGoalDialog> {
                 // Goal Name
                 TextFormField(
                   controller: _titleController,
-                  decoration: _buildInputDecoration("Goal Name", "e.g., New Laptop", Icons.label_outline),
+                  style: TextStyle(color: textColor),
+                  decoration: _buildInputDecoration("Goal Name", "e.g., New Laptop", Icons.label_outline, isDark, inputFill, borderColor),
                   validator: (v) => v!.isEmpty ? "Required" : null,
                   textCapitalization: TextCapitalization.sentences,
                 ),
@@ -99,7 +117,8 @@ class _AddGoalDialogState extends ConsumerState<AddGoalDialog> {
                 // Target Amount
                 TextFormField(
                   controller: _amountController,
-                  decoration: _buildInputDecoration("Target Amount", "0.00", Icons.track_changes),
+                  style: TextStyle(color: textColor),
+                  decoration: _buildInputDecoration("Target Amount", "0.00", Icons.track_changes, isDark, inputFill, borderColor),
                   keyboardType: TextInputType.number,
                   validator: (v) => v!.isEmpty ? "Required" : null,
                 ),
@@ -112,22 +131,22 @@ class _AddGoalDialogState extends ConsumerState<AddGoalDialog> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
+                      color: inputFill,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: borderColor),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_month_rounded, color: Colors.grey),
+                        Icon(Icons.calendar_month_rounded, color: iconColor),
                         const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text("Target Deadline", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text("Target Deadline", style: TextStyle(fontSize: 12, color: subTextColor)),
                             const SizedBox(height: 2),
                             Text(
                               DateFormat('MMMM d, y').format(_selectedDate),
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
                             ),
                           ],
                         ),
@@ -145,7 +164,7 @@ class _AddGoalDialogState extends ConsumerState<AddGoalDialog> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text("Cancel", style: TextStyle(color: Colors.grey[600])),
+                      child: Text("Cancel", style: TextStyle(color: subTextColor)),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
@@ -171,15 +190,17 @@ class _AddGoalDialogState extends ConsumerState<AddGoalDialog> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String label, String hint, IconData icon) {
+  InputDecoration _buildInputDecoration(String label, String hint, IconData icon, bool isDark, Color fill, Color border) {
     return InputDecoration(
       labelText: label,
+      labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.grey),
+      hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400]),
+      prefixIcon: Icon(icon, color: isDark ? Colors.grey[400] : Colors.grey),
       filled: true,
-      fillColor: Colors.grey[50],
+      fillColor: fill,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: border)),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.teal, width: 2)),
     );
   }
