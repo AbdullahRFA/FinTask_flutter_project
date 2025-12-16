@@ -8,22 +8,49 @@ class TodoRepository {
   final String userId;
   TodoRepository(this._firestore, this.userId);
 
+  // GET (Sorted by incomplete first, then priority)
   Stream<List<TodoModel>> getTodos() {
     return _firestore.collection('users').doc(userId).collection('todos')
-        .orderBy('date', descending: true).snapshots()
+        .orderBy('isCompleted', descending: false) // Unfinished first
+        .orderBy('priority', descending: true)     // High priority first
+        .orderBy('date', descending: true)
+        .snapshots()
         .map((snap) => snap.docs.map((doc) => TodoModel.fromMap(doc.data())).toList());
   }
 
-  Future<void> addTodo(String title) async {
+  // CREATE
+  Future<void> addTodo({
+    required String title,
+    required String description,
+    required DateTime? dueDate,
+    required TodoPriority priority,
+  }) async {
     final doc = _firestore.collection('users').doc(userId).collection('todos').doc();
-    await doc.set(TodoModel(id: doc.id, title: title, isCompleted: false, date: DateTime.now()).toMap());
+    final todo = TodoModel(
+      id: doc.id,
+      title: title,
+      description: description,
+      isCompleted: false,
+      date: DateTime.now(),
+      dueDate: dueDate,
+      priority: priority,
+    );
+    await doc.set(todo.toMap());
   }
 
+  // UPDATE (Full Edit)
+  Future<void> updateTodo(TodoModel todo) async {
+    await _firestore.collection('users').doc(userId).collection('todos').doc(todo.id)
+        .update(todo.toMap());
+  }
+
+  // TOGGLE STATUS
   Future<void> toggleTodo(String id, bool currentStatus) async {
     await _firestore.collection('users').doc(userId).collection('todos').doc(id)
         .update({'isCompleted': !currentStatus});
   }
 
+  // DELETE
   Future<void> deleteTodo(String id) async {
     await _firestore.collection('users').doc(userId).collection('todos').doc(id).delete();
   }
