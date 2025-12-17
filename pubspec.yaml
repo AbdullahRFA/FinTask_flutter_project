@@ -54,11 +54,18 @@ dependency_overrides:
 flutter:
   uses-material-design: true
 
-# Add this configuration section at the bottom of the file
+## Add this configuration section at the bottom of the file
+#flutter_launcher_icons:
+#  android: "launcher_icon"
+#  ios: true
+#  image_path: "assets/icon/app_icon.png"
+#  min_sdk_android: 21 # optional
+#  # adaptive_icon_background: "#FFFFFF" # Enable this if you have a background color preference
+#  # adaptive_icon_foreground: "assets/icon/app_icon.png" # For Android adaptive icons
+
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icon/app_icon.png"
-  min_sdk_android: 21 # optional
-  # adaptive_icon_background: "#FFFFFF" # Enable this if you have a background color preference
-  # adaptive_icon_foreground: "assets/icon/app_icon.png" # For Android adaptive icons
+  image_path: "assets/icon/app_icon.png" # Fallback for older devices/iOS
+  adaptive_icon_background: "#FFFFFF" # Or your brand color hex code
+  adaptive_icon_foreground: "assets/icon/foreground.png"
