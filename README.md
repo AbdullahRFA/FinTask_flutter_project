@@ -1,36 +1,58 @@
+# FinTask - Wealth & Productivity Manager
+
+![Flutter](https://img.shields.io/badge/Flutter-3.19-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/dart-3.0-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)
+![Firebase](https://img.shields.io/badge/firebase-Cloud%20Firestore-%23039BE5.svg?style=for-the-badge&logo=firebase)
+![Riverpod](https://img.shields.io/badge/State-Riverpod-purple?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)
+
+**FinTask** is a comprehensive lifestyle management application that seamlessly blends **Financial Tracking** with **Personal Productivity**. Built with Flutter and Firebase, it goes beyond simple expense logging by ensuring data integrity through ACID transactions, offering offline-first capabilities, and integrating robust task and note management tools.
+
+---
+
+## 🚀 Key Features
+
+### 💰 Financial Management
+* **Multi-Wallet System**: Create distinct wallets for different purposes (Daily, Travel, Business).
+* **Smart Budgeting**: Set monthly limits with visual alerts for "Low Balance" or "Over Budget" states.
+* **ACID Transactions**: 
+    * Expenses, Transfers, and Savings operations are atomic.
+    * Wallet balances update strictly in sync with transaction records to prevent data discrepancies.
+* **Fund Transfers**: Securely move money between wallets or allocate funds to savings goals.
+* **Rollover Logic**: Optionally carry over balances (positive or negative) when creating new budget periods.
+
+### 📈 Analytics & Reporting
+* **Visual Insights**:
+    * **Spending Trends**: Interactive Bar Charts for daily spending activity.
+    * **Category Breakdown**: Pie Charts to identify top spending categories.
+* **Global Summary**: Dedicated views for Weekly and Yearly financial overviews.
+* **PDF Export**: Generate professional expense reports with Bengali font support (`Tiro Bangla`) for physical records.
+
+### 🎯 Savings Goals
+* **Goal Tracking**: Set target amounts and deadlines for big purchases.
+* **Deposit & Withdraw**: seamlessly allocate funds from wallets to goals and back.
+* **Visual Progress**: Linear indicators showing percentage completion.
+
+### ✅ Productivity Suite
+* **Todo List**: 
+    * Task prioritization (High, Medium, Low).
+    * Due date tracking.
+    * Sort by priority, completion status, and date.
+* **Rich Text Notes**: 
+    * Full rich-text editor powered by `flutter_quill`.
+    * Color-coded notes for better organization.
+    * Grid view with content previews.
+
+### 🛠 Technical Highlights
+* **Offline-First Architecture**: 
+    * Implements a "Lie-fi" mitigation strategy using short timeouts (`_safeCommit`).
+    * Writes are queued locally and synced automatically when the connection restores.
+* **Theme Aware**: Fully adaptive Light and Dark modes.
+* **Cross-Platform Profile**: Profile image support for both Mobile (File System) and Web (Base64).
 
 
 ---
 
-
-# Monthly Expense - Wealth Tracker
-
-![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)
-![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)
-![Firebase](https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase)
-![Riverpod](https://img.shields.io/badge/State-Riverpod-purple?style=for-the-badge)
-
-**Monthly Expense** is a robust, cross-platform (Mobile & Web) application designed to help users track their wealth, manage multiple wallets, and visualize spending habits. Built with Flutter and powered by Firebase, it features real-time synchronization, offline persistence, and a modern, theme-aware UI.
-
-## 📱 Features
-
-### 💰 Wallet & Expense Management
-* **Multi-Wallet Support:** Create separate wallets for different needs (e.g., Personal, Business, Travel).
-* **Budget Tracking:** Set monthly budgets and get visual alerts when overspending.
-* **Smart Rollover:** Automatically calculate and rollover surplus or deficits when creating new monthly budgets.
-* **Negative Balance Alerts:** UI adapts to show red warnings and "Over Budget" badges when a wallet goes into debt.
-
-### 📊 Analytics & Insights
-* **Interactive Charts:**
-    * **Category Breakdown:** Pie charts to visualize where money is going.
-    * **Spending Trends:** Bar charts showing daily spending activity.
-    * **Weekly & Yearly Summaries:** Dedicated tabs for long-term financial analysis.
-* **PDF Export:** Generate professional PDF expense reports for any wallet.
-
-### 🎯 Savings Goals
-* **Goal Tracking:** Create saving targets (e.g., "New Laptop") with deadlines.
-* **Fund Transfer:** specialized UI to securely move funds from Wallets to Savings Goals.
-* **Visual Progress:** Linear progress bars indicating completion percentage.
 
 ### ⚙️ User Experience & Customization
 * **Dark/Light Mode:** Fully adaptive UI that respects system settings or user preference.
@@ -67,6 +89,7 @@
 * **Backend:** Firebase (Auth, Firestore)
 * **Charts:** [FL Chart](https://pub.dev/packages/fl_chart)
 * **PDF Generation:** [Pdf](https://pub.dev/packages/pdf) & [Printing](https://pub.dev/packages/printing)
+* **Rich Text**: `flutter_quill`
 * **Utilities:**
     * `intl` for currency and date formatting.
     * `image_picker` for profile photos.
@@ -77,19 +100,20 @@
 The project follows a **Feature-First** architecture for scalability and maintainability:
 
 ```text
-lib/
-├── core/               # Shared utilities (CurrencyHelper, PDFHelper, etc.)
-├── features/
-│   ├── analytics/      # Charts, Summary Screen, Repository
-│   ├── auth/           # Login, Signup, User Model, Auth Repository
-│   ├── expenses/       # Expense CRUD, Dialogs
-│   ├── home/           # Home Screen, Drawer
-│   ├── savings/        # Savings Goals, Deposit Dialog
-│   ├── settings/       # Theme Switcher, Profile Edit
-│   ├── wallet/         # Wallet Logic, Repository, Detail Screen
-│   └── providers/      # Global providers (Theme, etc.)
-├── firebase_options.dart
-└── main.dart
+
+lib/ ├── core/ 
+│ └── utils/ # Helpers for Currency, PDF, CSV, Analytics 
+├── features/ 
+│   ├── analytics/ # Charts and Summary screens 
+│   ├── auth/ # Login, Signup, Auth Repository 
+│   ├── expenses/ # Expense tracking logic & UI 
+│   ├── home/ # Dashboard & Drawer 
+│   ├── notes/ # Rich text notes module 
+│   ├── savings/ # Savings goals module 
+│   ├── settings/ # Profile & App settings 
+│   ├── todo/ # Task management module 
+│   └── wallet/ # Wallet logic & Transfer dialogs 
+└── main.dart # Entry point & App Theme config
 
 ```
 
