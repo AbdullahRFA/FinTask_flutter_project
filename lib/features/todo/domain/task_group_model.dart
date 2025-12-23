@@ -4,13 +4,15 @@ class TaskGroupModel {
   final String id;
   final String title;
   final String description;
-  final DateTime createdAt;
+  final DateTime createdAt; // When the folder was created (System time)
+  final DateTime deadline;  // The date picked by the user
 
   TaskGroupModel({
     required this.id,
     required this.title,
     required this.description,
     required this.createdAt,
+    required this.deadline,
   });
 
   Map<String, dynamic> toMap() {
@@ -19,15 +21,21 @@ class TaskGroupModel {
       'title': title,
       'description': description,
       'createdAt': Timestamp.fromDate(createdAt),
+      'deadline': Timestamp.fromDate(deadline),
     };
   }
 
   factory TaskGroupModel.fromMap(Map<String, dynamic> map) {
+    // Handle migration: If 'deadline' doesn't exist, use 'createdAt'
+    final created = (map['createdAt'] as Timestamp).toDate();
+    final deadlineTimestamp = map['deadline'] as Timestamp?;
+
     return TaskGroupModel(
       id: map['id'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      createdAt: created,
+      deadline: deadlineTimestamp != null ? deadlineTimestamp.toDate() : created,
     );
   }
 }

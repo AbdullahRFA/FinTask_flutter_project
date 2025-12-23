@@ -29,15 +29,19 @@ class TodoRepository {
   Future<void> addTaskGroup({
     required String title,
     required String description,
-    required DateTime date,
+    required DateTime deadline, // Changed: This is the user-picked date
   }) async {
     final doc = _firestore.collection('users').doc(userId).collection('task_groups').doc();
+
+    // Create the model
     final group = TaskGroupModel(
       id: doc.id,
       title: title,
       description: description,
-      createdAt: date,
+      createdAt: DateTime.now(), // Set system time for "Today/Yesterday" grouping
+      deadline: deadline,        // Set user-picked time for "Deadline" display
     );
+
     try {
       await doc.set(group.toMap()).timeout(_offlineTimeout);
     } on TimeoutException {
@@ -205,9 +209,7 @@ final todoListProvider = StreamProvider.family<List<TodoModel>, String>((ref, gr
   return ref.watch(todoRepositoryProvider).getTodos(groupId);
 });
 
-// Provider for a single TASK (Family requires Tuple or distinct args - using a custom class or just passing id manually in widget)
-// Ideally we pass a simple object, but here we can keep it simple:
-// We will access repo directly in the UI for single streams or create a specific provider if needed.
+// Provider for a single TASK
 final singleTodoStreamProvider = StreamProvider.family<TodoModel, ({String groupId, String todoId})>((ref, args) {
   return ref.watch(todoRepositoryProvider).getTodo(args.groupId, args.todoId);
 });

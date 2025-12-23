@@ -10,10 +10,11 @@ import 'todo_tasks_screen.dart';
 class TodoListScreen extends ConsumerWidget {
   const TodoListScreen({super.key});
 
-  // Helper to group lists by date
-  Map<String, List<TaskGroupModel>> _groupGroupsByDate(List<TaskGroupModel> groups) {
+  // Helper to group lists by CREATION DATE (Today, Yesterday, etc.)
+  Map<String, List<TaskGroupModel>> _groupGroupsByCreationDate(List<TaskGroupModel> groups) {
     final Map<String, List<TaskGroupModel>> grouped = {};
     for (var group in groups) {
+      // Grouping by the System Creation Date
       final dateKey = DateFormat('yyyy-MM-dd').format(group.createdAt);
       if (!grouped.containsKey(dateKey)) {
         grouped[dateKey] = [];
@@ -23,7 +24,7 @@ class TodoListScreen extends ConsumerWidget {
     return grouped;
   }
 
-  // Helper to get nice header text (Today, Yesterday, etc.)
+  // Helper to get nice header text relative to Current Time
   String _getNiceHeader(String dateKey) {
     final date = DateTime.parse(dateKey);
     final now = DateTime.now();
@@ -87,9 +88,11 @@ class TodoListScreen extends ConsumerWidget {
             );
           }
 
-          // 1. Group the data
-          final groupedMap = _groupGroupsByDate(groups);
-          final dateKeys = groupedMap.keys.toList(); // keys are already sorted if incoming list is sorted by date
+          // 1. Group the data by CREATION DATE
+          final groupedMap = _groupGroupsByCreationDate(groups);
+
+          // Sort keys: Newest Created First
+          final dateKeys = groupedMap.keys.toList()..sort((a, b) => b.compareTo(a));
 
           // 2. Build the list with headers
           return ListView.builder(
@@ -103,7 +106,7 @@ class TodoListScreen extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Date Header
+                  // Section Header (Today, Yesterday based on Creation)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                     child: Text(
@@ -116,11 +119,11 @@ class TodoListScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  // List of Cards for this date
+                  // List of Cards
                   ...dayGroups.map((group) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _TaskGroupCard(group: group, isDark: isDark, ref: ref),
+                      child: _TaskGroupCard(group: group, isDark: isDark),
                     );
                   }),
                 ],
@@ -135,15 +138,17 @@ class TodoListScreen extends ConsumerWidget {
   }
 }
 
-class _TaskGroupCard extends StatelessWidget {
+class _TaskGroupCard extends ConsumerWidget {
   final TaskGroupModel group;
   final bool isDark;
-  final WidgetRef ref;
 
-  const _TaskGroupCard({required this.group, required this.isDark, required this.ref});
+  const _TaskGroupCard({required this.group, required this.isDark});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch tasks SPECIFICALLY for this group to calculate progress
+    final todosAsync = ref.watch(todoListProvider(group.id));
+
     final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
@@ -238,29 +243,79 @@ class _TaskGroupCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Divider(height: 1, color: borderColor),
                 const SizedBox(height: 12),
+
+                // Footer: DEADLINE & Progress Indicator
                 Row(
                   children: [
-                    Icon(Icons.calendar_today_rounded, size: 14, color: subTextColor),
+                    Icon(Icons.calendar_month_rounded, size: 14, color: subTextColor),
                     const SizedBox(width: 6),
+                    // SHOWING DEADLINE (Picked Date)
                     Text(
-                      "Created on ${DateFormat('MMM d, y').format(group.createdAt)}",
+                      "Deadline ${DateFormat('MMM d').format(group.deadline)}",
                       style: TextStyle(fontSize: 12, color: subTextColor),
                     ),
                     const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        children: [
-                          Text("Open", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.purple)),
-                          SizedBox(width: 4),
-                          Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.purple)
-                        ],
-                      ),
-                    )
+
+                    // STATUS INDICATOR LOGIC
+                    todosAsync.when(
+                      data: (todos) {
+                        final total = todos.length;
+                        final completed = todos.where((t) => t.isCompleted).length;
+                        final isAllDone = total > 0 && total == completed;
+                        final isEmpty = total == 0;
+
+                        if (isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.grey[800] : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text("Empty", style: TextStyle(fontSize: 11, color: subTextColor)),
+                          );
+                        }
+
+                        if (isAllDone) {
+                          // All Tasks Completed Style
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.green.withOpacity(0.3)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded, size: 14, color: Colors.green),
+                                SizedBox(width: 4),
+                                Text("Completed", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green)),
+                              ],
+                            ),
+                          );
+                        } else {
+                          // Progress Style
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.pie_chart_outline, size: 14, color: Colors.orange[700]),
+                                const SizedBox(width: 4),
+                                Text(
+                                    "$completed/$total Done",
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.orange[800])
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      },
+                      loading: () => SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: subTextColor)),
+                      error: (_,__) => const SizedBox(),
+                    ),
                   ],
                 )
               ],

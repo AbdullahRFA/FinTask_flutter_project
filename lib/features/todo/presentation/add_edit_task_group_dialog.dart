@@ -59,12 +59,13 @@ class _AddEditTaskGroupDialogState extends ConsumerState<AddEditTaskGroupDialog>
     setState(() => _isLoading = true);
 
     try {
+      // Inside _save() method
       if (widget.groupToEdit == null) {
         // Create
         await ref.read(todoRepositoryProvider).addTaskGroup(
           title: _titleController.text.trim(),
           description: _descController.text.trim(),
-          date: _selectedDate,
+          deadline: _selectedDate, // Pass picked date as deadline
         );
       } else {
         // Update
@@ -72,7 +73,8 @@ class _AddEditTaskGroupDialogState extends ConsumerState<AddEditTaskGroupDialog>
           id: widget.groupToEdit!.id,
           title: _titleController.text.trim(),
           description: _descController.text.trim(),
-          createdAt: _selectedDate,
+          createdAt: widget.groupToEdit!.createdAt, // Keep original creation date
+          deadline: _selectedDate, // Update deadline
         );
         await ref.read(todoRepositoryProvider).updateTaskGroup(updatedGroup);
       }
