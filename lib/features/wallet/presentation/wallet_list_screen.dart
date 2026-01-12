@@ -309,20 +309,26 @@ class _WalletCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          wallet.name,
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat('MMMM yyyy').format(DateTime(wallet.year, wallet.month)),
-                          style: TextStyle(fontSize: 12, color: subTextColor),
-                        ),
-                      ],
+                    // --- FIX: Wrapped in Expanded to prevent Overflow ---
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            wallet.name,
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat('MMMM yyyy').format(DateTime(wallet.year, wallet.month)),
+                            style: TextStyle(fontSize: 12, color: subTextColor),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     _buildPopupMenu(context, ref, wallet, isDark, textColor),
                   ],
                 ),
