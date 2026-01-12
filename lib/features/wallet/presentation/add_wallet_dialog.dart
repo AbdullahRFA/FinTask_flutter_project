@@ -114,8 +114,19 @@ class _AddWalletDialogState extends ConsumerState<AddWalletDialog> {
                       data: (wallets) {
                         if(wallets.isEmpty) return const SizedBox.shrink();
                         return DropdownButtonFormField<String>(
-                          decoration: InputDecoration(labelText: "Rollover From (Optional)", filled: true, fillColor: isDark ? const Color(0xFF2C2C2C) : Colors.grey[50]),
-                          items: wallets.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name))).toList(),
+                          isExpanded: true, // FIX: Prevents horizontal overflow
+                          decoration: InputDecoration(
+                              labelText: "Rollover From (Optional)",
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF2C2C2C) : Colors.grey[50]
+                          ),
+                          items: wallets.map((w) => DropdownMenuItem(
+                              value: w.id,
+                              child: Text(
+                                w.name,
+                                overflow: TextOverflow.ellipsis, // FIX: Truncates long names
+                              )
+                          )).toList(),
                           onChanged: (val) {
                             final w = wallets.firstWhere((element) => element.id == val);
                             setState(() { _selectedRolloverWalletId = val; _rolloverAmount = w.currentBalance; _selectedRolloverWalletName = w.name; });
